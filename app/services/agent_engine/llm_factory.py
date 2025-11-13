@@ -4,6 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult
+from openai import OpenAI
 
 
 class SafeChatOpenAI(ChatOpenAI):
@@ -92,4 +93,49 @@ class LLMFactory:
             max_tokens=500
         )
         return LLMFactory.create_llm(config)
+    
+    @staticmethod
+    def create_responses_client() -> OpenAI:
+        """
+        Crear cliente de OpenAI para Responses API.
+        
+        Responses API es la nueva API que reemplaza Chat Completions
+        y soporta GPT-5 con reasoning controls.
+        """
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY no está configurada en variables de entorno")
+        
+        return OpenAI(api_key=api_key)
+    
+    @staticmethod
+    async def call_gpt5_nano_minimal(input_text: str, system_prompt: str = "") -> str:
+        """
+        Llamar a gpt-5-nano con minimal reasoning para análisis rápido.
+        
+        Args:
+            input_text: Texto a analizar
+            system_prompt: System prompt opcional
+        
+        Returns:
+            str: Respuesta del modelo
+        """
+        client = LLMFactory.create_responses_client()
+        
+        # Combinar system prompt con input si existe
+        full_input = f"{system_prompt}\n\n{input_text}" if system_prompt else input_text
+        
+        try:
+            response = client.responses.create(
+                model="gpt-5-nano",
+                input=full_input,
+                reasoning={"effort": "minimal"},  # Mínimo razonamiento para velocidad
+                text={"verbosity": "low"}  # Respuestas concisas
+            )
+            
+            return response.output_text
+            
+        except Exception as e:
+            print(f"Error llamando a gpt-5-nano: {e}")
+            raise
 

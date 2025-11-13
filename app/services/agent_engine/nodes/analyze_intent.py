@@ -1,66 +1,83 @@
 import json
 from typing import Dict, Any
-from langchain_core.messages import SystemMessage, HumanMessage
 from app.services.agent_engine.llm_factory import LLMFactory
 
 
 async def analyze_intent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Nodo de análisis de intención.
-    Usa gpt-5-mini para analizar rápidamente la intención del mensaje.
+    Nodo de análisis de intención usando gpt-5-nano con minimal reasoning.
+    
+    Este nodo SIEMPRE se ejecuta primero para determinar:
+    - Si es el primer mensaje (para ejecutar greet)
+    - Intent del mensaje (greeting, question, complaint, etc)
+    - Sentiment (positive, neutral, negative)
+    - Si requiere handoff a humano
     """
-    # Obtener último mensaje del usuario
+    # Obtener mensajes del usuario
     human_messages = [m for m in state['messages'] if m.type == 'human']
     
     if not human_messages:
         return {
+            'intent': 'other',
+            'sentiment': 'neutral',
+            'should_handoff': False,
+            'is_first_message': False,
             'nodes_visited': state.get('nodes_visited', []) + ['analyze_intent']
         }
     
     last_user_message = human_messages[-1]
+    is_first_message = len(human_messages) == 1
     
-    # LLM rápido para análisis
-    llm = LLMFactory.create_fast()
-    
-    # Prompt para análisis
-    analysis_prompt = f"""Analiza el siguiente mensaje del cliente y responde en JSON:
+    # Prompt optimizado para gpt-5-nano
+    analysis_prompt = f"""Analiza el mensaje y responde SOLO con JSON válido:
 
 Mensaje: "{last_user_message.content}"
+Es primer mensaje: {is_first_message}
 
-Responde con:
+JSON requerido:
 {{
   "intent": "greeting|question|complaint|request_human|other",
   "sentiment": "positive|neutral|negative",
   "should_handoff": boolean,
-  "reason": "razón si should_handoff es true"
+  "needs_knowledge": boolean,
+  "reason": "razón del handoff si aplica"
 }}
 
-Si el cliente pide explícitamente hablar con un humano, should_handoff debe ser true."""
+Reglas:
+- should_handoff=true si pide hablar con humano
+- needs_knowledge=true si hace pregunta específica
+- intent=greeting si es saludo (hola, buenos días, etc)"""
+
+    system_prompt = "Eres un clasificador de intenciones. Responde SOLO con JSON válido."
     
     try:
-        response = await llm.ainvoke([
-            SystemMessage(content="Eres un analizador de intenciones. Responde solo con JSON válido."),
-            HumanMessage(content=analysis_prompt)
-        ])
+        response_text = await LLMFactory.call_gpt5_nano_minimal(
+            input_text=analysis_prompt,
+            system_prompt=system_prompt
+        )
         
-        # Parsear respuesta
-        analysis = json.loads(response.content)
+        # Parsear JSON de la respuesta
+        analysis = json.loads(response_text)
+        
+        print(f"🧠 Intención analizada: intent={analysis.get('intent')}, sentiment={analysis.get('sentiment')}, first_msg={is_first_message}")
         
     except Exception as e:
-        print(f"Error analizando intención: {e}")
-        # Fallback a valores por defecto
+        print(f"❌ Error analizando intención: {e}")
+        # Fallback seguro
         analysis = {
             'intent': 'other',
             'sentiment': 'neutral',
             'should_handoff': False,
+            'needs_knowledge': False,
             'reason': None
         }
     
     return {
-        'intent': analysis.get('intent'),
-        'sentiment': analysis.get('sentiment'),
+        'intent': analysis.get('intent', 'other'),
+        'sentiment': analysis.get('sentiment', 'neutral'),
         'should_handoff': analysis.get('should_handoff', False),
+        'needs_knowledge': analysis.get('needs_knowledge', False),
         'handoff_reason': analysis.get('reason'),
+        'is_first_message': is_first_message,  # ← NUEVO: flag para routing
         'nodes_visited': state.get('nodes_visited', []) + ['analyze_intent']
     }
-

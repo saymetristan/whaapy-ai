@@ -5,22 +5,13 @@ from langchain_core.messages import AIMessage
 async def greet_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Nodo de saludo inicial.
-    Solo saluda en el primer mensaje de la conversación.
+    
+    Este nodo solo se ejecuta cuando analyze_intent detecta is_first_message=True.
+    El routing garantiza que no se ejecuta innecesariamente.
     """
-    # Solo saludar si es el primer mensaje (solo hay 1 mensaje del usuario)
-    human_messages = [m for m in state['messages'] if m.type == 'human']
-    
-    if len(human_messages) > 1:
-        # No es el primer mensaje, skip el saludo
-        return {
-            'nodes_visited': state.get('nodes_visited', []) + ['greet']
-        }
-    
-    # Primer mensaje, agregar saludo
     greeting = AIMessage(content="¡Hola! 👋 ¿En qué puedo ayudarte hoy?")
     
     return {
         'messages': [greeting],
         'nodes_visited': state.get('nodes_visited', []) + ['greet']
     }
-

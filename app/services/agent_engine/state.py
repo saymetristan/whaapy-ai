@@ -23,9 +23,11 @@ class AgentState(dict):
     sentiment: Optional[str]  # positive, neutral, negative
     should_handoff: bool
     handoff_reason: Optional[str]
+    is_first_message: bool  # Nuevo: para detectar primer mensaje
+    needs_knowledge: bool   # Nuevo: si necesita buscar en KB
     
     # Knowledge base
-    retrieved_docs: Optional[List[str]]
+    retrieved_docs: Optional[str]
     
     # Tracking
     nodes_visited: List[str]
@@ -55,6 +57,8 @@ def create_initial_state(
         sentiment=None,
         should_handoff=False,
         handoff_reason=None,
+        is_first_message=False,  # Lo determina analyze_intent
+        needs_knowledge=False,   # Lo determina analyze_intent
         retrieved_docs=None,
         nodes_visited=[],
         tools_used=[],

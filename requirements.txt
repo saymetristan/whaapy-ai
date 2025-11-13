@@ -16,6 +16,9 @@ langgraph==0.2.45
 # Vector store
 pgvector==0.3.6
 
+# OpenAI SDK (Responses API support)
+openai>=1.59.0
+
 # Utilities
 pydantic==2.10.0
 pydantic-settings==2.6.0
