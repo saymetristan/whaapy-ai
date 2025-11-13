@@ -40,7 +40,7 @@ class LLMFactory:
             api_key=api_key,
             model=config.model,
             temperature=config.temperature,
-            max_tokens=config.max_tokens
+            max_completion_tokens=config.max_tokens  # gpt-5-mini usa max_completion_tokens
         )
     
     @staticmethod

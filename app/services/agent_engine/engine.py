@@ -121,8 +121,7 @@ class AgentEngine:
                                 'sentiment', %s,
                                 'handoff', %s,
                                 'duration_ms', %s
-                            ),
-                            updated_at = %s
+                            )
                         WHERE id = %s
                     """, (
                         datetime.now(),
@@ -131,7 +130,6 @@ class AgentEngine:
                         result.get('sentiment'),
                         result.get('should_handoff', False),
                         duration_ms,
-                        datetime.now(),
                         execution_id
                     ))
                     
@@ -170,13 +168,11 @@ class AgentEngine:
                         UPDATE ai.agent_executions
                         SET status = 'failed',
                             completed_at = %s,
-                            error = %s,
-                            updated_at = %s
+                            error = %s
                         WHERE id = %s
                     """, (
                         datetime.now(),
                         str(error),
-                        datetime.now(),
                         execution_id
                     ))
                     

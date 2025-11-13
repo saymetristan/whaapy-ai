@@ -20,8 +20,7 @@ async def handoff_node(state: Dict[str, Any]) -> Dict[str, Any]:
                         COALESCE(metadata, '{}'::jsonb),
                         '{handoff_reason}',
                         to_jsonb(%s::text)
-                    ),
-                    updated_at = NOW()
+                    )
                 WHERE id = %s
             """, (
                 state.get('handoff_reason', 'Usuario solicitó atención humana'),
