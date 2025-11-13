@@ -1,7 +1,28 @@
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from langchain_openai import ChatOpenAI
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+from langchain_core.outputs import ChatResult
+
+
+class SafeChatOpenAI(ChatOpenAI):
+    """
+    Wrapper de ChatOpenAI que NUNCA pasa temperature.
+    Los modelos nuevos de OpenAI (gpt-5-mini, gpt-4o) no aceptan temperature custom.
+    """
+    
+    def __init__(self, **kwargs):
+        # Remover temperature si existe en kwargs
+        kwargs.pop('temperature', None)
+        super().__init__(**kwargs)
+    
+    @property
+    def _default_params(self) -> Dict[str, Any]:
+        """Override para asegurar que temperature nunca se envía"""
+        params = super()._default_params
+        params.pop('temperature', None)
+        return params
 
 
 class LLMConfig:
@@ -37,8 +58,8 @@ class LLMFactory:
             raise ValueError("OPENAI_API_KEY no está configurada en variables de entorno")
         
         # Los modelos de OpenAI nuevos no aceptan temperature custom
-        # Usar default (1.0) para todos los modelos
-        return ChatOpenAI(
+        # Usar SafeChatOpenAI que elimina temperature automáticamente
+        return SafeChatOpenAI(
             api_key=api_key,
             model=config.model,
             max_completion_tokens=config.max_tokens
