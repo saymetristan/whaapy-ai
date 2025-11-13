@@ -88,11 +88,19 @@ class AgentEngine:
                 customer_name=customer_name
             )
             
+            # Limpiar config para evitar enviar temperature (OpenAI no lo acepta)
+            clean_config = {
+                'provider': self.config.get('provider', 'openai'),
+                'model': self.config.get('model', 'gpt-5-mini'),
+                'max_tokens': self.config.get('max_tokens', 2000),
+                'system_prompt': self.config.get('system_prompt', '')
+            }
+            
             # Ejecutar grafo con configuración del agente
             print(f"🚀 Ejecutando grafo para execution {execution_id}")
             result = await self.graph.ainvoke(
                 initial_state,
-                config={"configurable": self.config}
+                config={"configurable": clean_config}
             )
             
             # Extraer última respuesta del asistente
