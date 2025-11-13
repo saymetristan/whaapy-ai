@@ -1,0 +1,11 @@
+# FastAPI y server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-dotenv==1.0.0
+
+# Database
+psycopg2-binary==2.9.9
+
+# Utilities
+pydantic==2.5.0
+httpx==0.26.0
