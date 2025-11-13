@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import health, agent, embeddings, chat
+from app.routes import health, agent, embeddings, chat, ai_operations
 from app.config import settings
 
 app = FastAPI(
@@ -38,6 +38,12 @@ app.include_router(
     chat.router,
     prefix="/ai",
     tags=["chat"]
+)
+
+app.include_router(
+    ai_operations.router,
+    prefix="/ai",
+    tags=["ai-operations"]
 )
 
 @app.get("/")
