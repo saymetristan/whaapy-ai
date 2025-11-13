@@ -147,22 +147,17 @@ class KnowledgeBase:
         
         Returns: Lista de chunks relevantes con similarity scores
         """
-        print(f"🔍 Iniciando búsqueda: query='{query}', k={k}, threshold={threshold}")
-        
         # 1. Generar embedding de la query
         query_embedding = await self.embeddings.aembed_query(query)
-        print(f"✅ Embedding generado: {len(query_embedding)} dimensiones")
         
         # 2. Convertir embedding a formato string para PostgreSQL
         query_embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
-        print(f"✅ Embedding convertido a string: {len(query_embedding_str)} chars")
         
         # 3. Buscar usando función ai.match_documents
         conn = get_db_connection()
         cursor = conn.cursor()
         
         try:
-            print(f"🔎 Ejecutando query SQL: business_id={business_id}, document_ids={document_ids}")
             cursor.execute(
                 """
                 SELECT id, document_id, chunk_index, content, metadata, similarity
@@ -184,7 +179,6 @@ class KnowledgeBase:
             )
             
             results = cursor.fetchall()
-            print(f"✅ Query ejecutada: {len(results)} resultados encontrados")
             
             # Los resultados son RealDictCursor, usar nombres de columna
             return [
@@ -200,9 +194,6 @@ class KnowledgeBase:
             ]
         
         except Exception as e:
-            print(f"❌ Error en búsqueda: {type(e).__name__}: {str(e)}")
-            import traceback
-            traceback.print_exc()
             raise e
         finally:
             cursor.close()
