@@ -64,10 +64,10 @@ class LLMFactory:
     
     @staticmethod
     def create_fast() -> BaseChatModel:
-        """Crear LLM rápido para análisis (gpt-5-mini con temperatura baja)"""
+        """Crear LLM rápido para análisis (gpt-5-mini)"""
         config = LLMConfig(
             model='gpt-5-mini',
-            temperature=0.0,
+            temperature=1.0,  # Usar default de OpenAI
             max_tokens=500
         )
         return LLMFactory.create_llm(config)
