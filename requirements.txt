@@ -1,6 +1,6 @@
 # FastAPI y server
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
 python-dotenv==1.0.0
 
 # Database
@@ -16,6 +16,6 @@ langchain-text-splitters==0.3.0
 pgvector==0.3.6
 
 # Utilities
-pydantic==2.5.0
-pydantic-settings==2.1.0
-httpx==0.26.0
+pydantic==2.10.0
+pydantic-settings==2.6.0
+httpx==0.28.0
