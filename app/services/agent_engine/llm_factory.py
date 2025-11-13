@@ -36,12 +36,19 @@ class LLMFactory:
         if not api_key:
             raise ValueError("OPENAI_API_KEY no está configurada en variables de entorno")
         
-        return ChatOpenAI(
-            api_key=api_key,
-            model=config.model,
-            temperature=config.temperature,
-            max_completion_tokens=config.max_tokens  # gpt-5-mini usa max_completion_tokens
-        )
+        # gpt-5-mini solo acepta temperature=1 (default)
+        # otros modelos pueden tener temperature custom
+        llm_kwargs = {
+            'api_key': api_key,
+            'model': config.model,
+            'max_completion_tokens': config.max_tokens
+        }
+        
+        # Solo agregar temperature si NO es gpt-5-mini
+        if 'gpt-5-mini' not in config.model:
+            llm_kwargs['temperature'] = config.temperature
+        
+        return ChatOpenAI(**llm_kwargs)
     
     @staticmethod
     def create_from_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
