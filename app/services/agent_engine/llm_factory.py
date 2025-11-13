@@ -47,10 +47,11 @@ class LLMFactory:
     @staticmethod
     def create_from_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
         """Crear LLM desde un diccionario de configuración"""
+        # Ignorar temperature del config - OpenAI nuevos modelos no lo aceptan
         config = LLMConfig(
             provider=config_dict.get('provider', 'openai'),
             model=config_dict.get('model', 'gpt-5-mini'),
-            temperature=config_dict.get('temperature', 0.2),
+            temperature=1.0,  # Usar default de OpenAI
             max_tokens=config_dict.get('max_tokens', 2000)
         )
         return LLMFactory.create_llm(config)
