@@ -11,12 +11,11 @@ class AgentConfigManager:
         with get_db() as conn:
             cursor = conn.cursor()
             
-            # Nota: search_path ya está configurado como "ai,public"
-            # por lo que agent_config se resuelve a ai.agent_config
+            # Usar schema prefix explícito
             cursor.execute("""
                 SELECT id, business_id, system_prompt, provider, model, 
                        temperature, max_tokens, enabled, created_at, updated_at
-                FROM agent_config
+                FROM ai.agent_config
                 WHERE business_id = %s
             """, (business_id,))
             
@@ -45,7 +44,7 @@ class AgentConfigManager:
             set_clause = ", ".join(set_clauses)
             
             cursor.execute(f"""
-                UPDATE agent_config
+                UPDATE ai.agent_config
                 SET {set_clause}, updated_at = NOW()
                 WHERE business_id = %s
                 RETURNING id, business_id, system_prompt, provider, model,
@@ -66,7 +65,7 @@ class AgentConfigManager:
             cursor = conn.cursor()
             
             cursor.execute("""
-                INSERT INTO agent_config (
+                INSERT INTO ai.agent_config (
                     business_id, system_prompt, provider, model,
                     temperature, max_tokens, enabled
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
