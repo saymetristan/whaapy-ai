@@ -186,14 +186,15 @@ class KnowledgeBase:
             results = cursor.fetchall()
             print(f"✅ Query ejecutada: {len(results)} resultados encontrados")
             
+            # Los resultados son RealDictCursor, usar nombres de columna
             return [
                 {
-                    "id": str(row[0]),
-                    "document_id": str(row[1]),
-                    "chunk_index": row[2],
-                    "content": row[3],
-                    "metadata": row[4],
-                    "similarity": row[5]
+                    "id": str(row["id"]),
+                    "document_id": str(row["document_id"]),
+                    "chunk_index": row["chunk_index"],
+                    "content": row["content"],
+                    "metadata": row["metadata"],
+                    "similarity": row["similarity"]
                 }
                 for row in results
             ]
