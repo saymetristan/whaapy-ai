@@ -1,4 +1,5 @@
 import os
+import json
 from typing import List, Dict, Any, Optional
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -75,19 +76,23 @@ class KnowledgeBase:
                 }
                 
                 # Insertar en DB
+                # Convertir embedding a formato vector de PostgreSQL
+                embedding_str = '[' + ','.join(map(str, embedding)) + ']'
+                metadata_json = json.dumps(chunk_metadata)
+                
                 cursor.execute(
                     """
                     INSERT INTO ai.documents_embeddings 
                     (business_id, document_id, chunk_index, content, embedding, metadata)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s::vector, %s::jsonb)
                     """,
                     (
                         business_id,
                         document_id,
                         idx,
                         chunk,
-                        embedding,
-                        chunk_metadata
+                        embedding_str,
+                        metadata_json
                     )
                 )
                 
