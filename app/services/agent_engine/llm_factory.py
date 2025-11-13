@@ -7,6 +7,24 @@ from langchain_core.outputs import ChatResult
 from openai import OpenAI
 
 
+def is_gpt5_model(model: str) -> bool:
+    """
+    Verifica si un modelo soporta reasoning controls (GPT-5 family).
+    
+    Según la documentación de OpenAI:
+    - gpt-5, gpt-5-mini, gpt-5-nano soportan reasoning.effort y text.verbosity
+    - gpt-4o, gpt-4o-mini, gpt-4, gpt-3.5 NO soportan estos parámetros
+    
+    Los nombres de API son:
+    - gpt-5 (system card: gpt-5-thinking)
+    - gpt-5-mini (system card: gpt-5-thinking-mini)
+    - gpt-5-nano (system card: gpt-5-thinking-nano)
+    - gpt-5-chat-latest (system card: gpt-5-main)
+    """
+    gpt5_models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
+    return any(model.startswith(m) for m in gpt5_models)
+
+
 class SafeChatOpenAI(ChatOpenAI):
     """
     Wrapper de ChatOpenAI que NUNCA pasa temperature.

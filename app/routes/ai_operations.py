@@ -11,6 +11,27 @@ from openai import OpenAI
 router = APIRouter()
 
 # ============================================
+# HELPERS
+# ============================================
+
+def is_gpt5_model(model: str) -> bool:
+    """
+    Verifica si un modelo soporta reasoning controls (GPT-5 family).
+    
+    Según la documentación de OpenAI:
+    - gpt-5, gpt-5-mini, gpt-5-nano soportan reasoning.effort y text.verbosity
+    - gpt-4o, gpt-4o-mini, gpt-4, gpt-3.5 NO soportan estos parámetros
+    
+    Los nombres de API son:
+    - gpt-5 (system card: gpt-5-thinking)
+    - gpt-5-mini (system card: gpt-5-thinking-mini)
+    - gpt-5-nano (system card: gpt-5-thinking-nano)
+    - gpt-5-chat-latest (system card: gpt-5-main)
+    """
+    gpt5_models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
+    return any(model.startswith(m) for m in gpt5_models)
+
+# ============================================
 # SCHEMAS
 # ============================================
 
@@ -83,12 +104,22 @@ Responde en JSON con este formato exacto:
     
     try:
         # Responses API es SÍNCRONA, no usar await
-        response = client.responses.create(
-            model="gpt-5-mini",
-            input=analysis_input,
-            reasoning={ "effort": "low" },
-            text={ "verbosity": "low" }
-        )
+        model = "gpt-5-mini"
+        
+        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+        if is_gpt5_model(model):
+            response = client.responses.create(
+                model=model,
+                input=analysis_input,
+                reasoning={ "effort": "low" },
+                text={ "verbosity": "low" }
+            )
+        else:
+            # Fallback para modelos no-GPT5 (sin reasoning controls)
+            response = client.responses.create(
+                model=model,
+                input=analysis_input
+            )
         
         analysis = json.loads(response.output_text)
         
@@ -127,12 +158,20 @@ async def generate_suggestion(
     
     try:
         # Responses API es SÍNCRONA, no usar await
-        response = client.responses.create(
-            model=request.model,
-            input=conversation_text,
-            reasoning={ "effort": "medium" },
-            text={ "verbosity": "low" }
-        )
+        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+        if is_gpt5_model(request.model):
+            response = client.responses.create(
+                model=request.model,
+                input=conversation_text,
+                reasoning={ "effort": "medium" },
+                text={ "verbosity": "low" }
+            )
+        else:
+            # Fallback para modelos no-GPT5 (sin reasoning controls)
+            response = client.responses.create(
+                model=request.model,
+                input=conversation_text
+            )
         
         suggestion = response.output_text
         

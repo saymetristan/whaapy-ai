@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from app.services.agent_engine.llm_factory import LLMFactory
+from app.services.agent_engine.llm_factory import LLMFactory, is_gpt5_model
 from langchain_core.messages import AIMessage
 
 
@@ -30,14 +30,23 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
     # Llamar a Responses API vía factory
     try:
         client = LLMFactory.create_responses_client()
+        model = config.get('model', 'gpt-5-mini')
         
         # Responses API es SÍNCRONA, no usar await
-        response = client.responses.create(
-            model=config.get('model', 'gpt-5-mini'),
-            input=conversation_text,
-            reasoning={ "effort": "medium" },  # Razonamiento moderado para respuestas
-            text={ "verbosity": "medium" }
-        )
+        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+        if is_gpt5_model(model):
+            response = client.responses.create(
+                model=model,
+                input=conversation_text,
+                reasoning={ "effort": "medium" },  # Razonamiento moderado para respuestas
+                text={ "verbosity": "medium" }
+            )
+        else:
+            # Fallback para modelos no-GPT5 (sin reasoning controls)
+            response = client.responses.create(
+                model=model,
+                input=conversation_text
+            )
         
         response_content = response.output_text
         
