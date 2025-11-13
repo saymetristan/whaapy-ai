@@ -150,7 +150,10 @@ class KnowledgeBase:
         # 1. Generar embedding de la query
         query_embedding = await self.embeddings.aembed_query(query)
         
-        # 2. Buscar usando función ai.match_documents
+        # 2. Convertir embedding a formato string para PostgreSQL
+        query_embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
+        
+        # 3. Buscar usando función ai.match_documents
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -159,15 +162,15 @@ class KnowledgeBase:
                 """
                 SELECT id, document_id, chunk_index, content, metadata, similarity
                 FROM ai.match_documents(
-                    %s::vector,
-                    %s,
-                    %s,
+                    %s::ai.vector,
+                    %s::double precision,
+                    %s::integer,
                     %s::uuid,
-                    %s
+                    %s::uuid[]
                 )
                 """,
                 (
-                    query_embedding,
+                    query_embedding_str,
                     threshold,
                     k,
                     business_id,
