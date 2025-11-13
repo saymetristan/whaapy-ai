@@ -82,7 +82,8 @@ Responde en JSON con este formato exacto:
 }}"""
     
     try:
-        response = await client.responses.create(
+        # Responses API es SÍNCRONA, no usar await
+        response = client.responses.create(
             model="gpt-5-mini",
             input=analysis_input,
             reasoning={ "effort": "low" },
@@ -125,7 +126,8 @@ async def generate_suggestion(
         conversation_text += f"{role}: {content}\n"
     
     try:
-        response = await client.responses.create(
+        # Responses API es SÍNCRONA, no usar await
+        response = client.responses.create(
             model=request.model,
             input=conversation_text,
             reasoning={ "effort": "medium" },

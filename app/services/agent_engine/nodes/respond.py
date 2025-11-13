@@ -31,7 +31,8 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
     try:
         client = LLMFactory.create_responses_client()
         
-        response = await client.responses.create(
+        # Responses API es SÍNCRONA, no usar await
+        response = client.responses.create(
             model=config.get('model', 'gpt-5-mini'),
             input=conversation_text,
             reasoning={ "effort": "medium" },  # Razonamiento moderado para respuestas
