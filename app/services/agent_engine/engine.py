@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage
 from app.services.agent_engine.graph import create_agent_graph
 from app.services.agent_engine.state import create_initial_state
 from app.services.agent_engine.analytics_tracking import calculate_cost
+from app.services.agent_engine.token_tracker import TokenTrackerCallback
 from app.db.database import get_db
 
 
@@ -97,11 +98,17 @@ class AgentEngine:
                 'system_prompt': self.config.get('system_prompt', '')
             }
             
-            # Ejecutar grafo con configuración del agente
+            # Crear callback para tracking de tokens
+            token_tracker = TokenTrackerCallback()
+            
+            # Ejecutar grafo con configuración del agente y callback
             print(f"🚀 Ejecutando grafo para execution {execution_id}")
             result = await self.graph.ainvoke(
                 initial_state,
-                config={"configurable": clean_config}
+                config={
+                    "configurable": clean_config,
+                    "callbacks": [token_tracker]
+                }
             )
             
             # Extraer última respuesta del asistente
@@ -115,16 +122,10 @@ class AgentEngine:
             # Calcular duración
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             
-            # Obtener tokens de usage_metadata si está disponible
-            tokens_used = 0
-            if ai_messages and hasattr(ai_messages[-1], 'usage_metadata'):
-                usage = ai_messages[-1].usage_metadata
-                if usage:
-                    tokens_used = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
+            # Obtener tokens del callback tracker
+            tokens_used = token_tracker.get_total_tokens()
             
-            # Si no hay usage_metadata, intentar obtenerlo del state
-            if tokens_used == 0 and 'tokens_used' in result:
-                tokens_used = result.get('tokens_used', 0)
+            print(f"📊 Tokens capturados: {tokens_used}")
             
             # Calcular costo
             model = self.config.get('model', 'gpt-5-mini')
