@@ -80,11 +80,12 @@ class KnowledgeBase:
                 embedding_str = '[' + ','.join(map(str, embedding)) + ']'
                 metadata_json = json.dumps(chunk_metadata)
                 
+                # No usar cast explícito, dejar que PostgreSQL lo resuelva automáticamente
                 cursor.execute(
                     """
                     INSERT INTO ai.documents_embeddings 
                     (business_id, document_id, chunk_index, content, embedding, metadata)
-                    VALUES (%s, %s, %s, %s, %s::vector, %s::jsonb)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     """,
                     (
                         business_id,
