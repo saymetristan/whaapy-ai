@@ -1,5 +1,7 @@
 from typing import Dict, Any
+from datetime import datetime
 from app.services.knowledge_base import KnowledgeBase
+from app.services.agent_engine.analytics_tracking import save_tool_execution
 
 
 async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -7,6 +9,9 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Nodo de retrieval de knowledge base.
     Busca información relevante en los embeddings del negocio.
     """
+    start_time = datetime.now()
+    execution_id = state.get('execution_id')
+    
     # Obtener último mensaje del usuario
     human_messages = [m for m in state['messages'] if m.type == 'human']
     
@@ -33,9 +38,33 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
         
         print(f"📚 Retrieved {len(retrieved_docs)} docs from KB")
         
+        # Log tool execution
+        if execution_id:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            save_tool_execution(
+                execution_id=execution_id,
+                tool_name='knowledge_base_search',
+                duration_ms=duration_ms,
+                success=True,
+                request_data={'query': last_user_message.content, 'k': 3, 'threshold': 0.5},
+                response_data={'results_count': len(retrieved_docs)}
+            )
+        
     except Exception as e:
         print(f"Error retrieving knowledge: {e}")
         retrieved_docs = []
+        
+        # Log failed tool execution
+        if execution_id:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            save_tool_execution(
+                execution_id=execution_id,
+                tool_name='knowledge_base_search',
+                duration_ms=duration_ms,
+                success=False,
+                error=str(e),
+                request_data={'query': last_user_message.content, 'k': 3, 'threshold': 0.5}
+            )
     
     return {
         'retrieved_docs': retrieved_docs if retrieved_docs else None,

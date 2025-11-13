@@ -4,6 +4,7 @@ from datetime import datetime
 from langchain_core.messages import HumanMessage
 from app.services.agent_engine.graph import create_agent_graph
 from app.services.agent_engine.state import create_initial_state
+from app.services.agent_engine.analytics_tracking import calculate_cost
 from app.db.database import get_db
 
 
@@ -114,6 +115,21 @@ class AgentEngine:
             # Calcular duración
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             
+            # Obtener tokens de usage_metadata si está disponible
+            tokens_used = 0
+            if ai_messages and hasattr(ai_messages[-1], 'usage_metadata'):
+                usage = ai_messages[-1].usage_metadata
+                if usage:
+                    tokens_used = usage.get('input_tokens', 0) + usage.get('output_tokens', 0)
+            
+            # Si no hay usage_metadata, intentar obtenerlo del state
+            if tokens_used == 0 and 'tokens_used' in result:
+                tokens_used = result.get('tokens_used', 0)
+            
+            # Calcular costo
+            model = self.config.get('model', 'gpt-5-mini')
+            cost = calculate_cost(tokens_used, model)
+            
             # Actualizar execution en DB con resultado
             with get_db() as conn:
                 cursor = conn.cursor()
@@ -124,6 +140,8 @@ class AgentEngine:
                         SET status = 'completed',
                             completed_at = %s,
                             nodes_visited = %s,
+                            tokens_used = %s,
+                            cost = %s,
                             metadata = jsonb_build_object(
                                 'intent', %s,
                                 'sentiment', %s,
@@ -134,6 +152,8 @@ class AgentEngine:
                     """, (
                         datetime.now(),
                         result.get('nodes_visited', []),
+                        tokens_used,
+                        cost,
                         result.get('intent'),
                         result.get('sentiment'),
                         result.get('should_handoff', False),
@@ -142,7 +162,7 @@ class AgentEngine:
                     ))
                     
                     conn.commit()
-                    print(f"✅ Execution completada: {execution_id} ({duration_ms}ms)")
+                    print(f"✅ Execution completada: {execution_id} ({duration_ms}ms, {tokens_used} tokens, ${cost:.6f})")
                     
                 except Exception as e:
                     print(f"Error actualizando execution: {e}")
