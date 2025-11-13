@@ -25,7 +25,7 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
             business_id=state['business_id'],
             query=last_user_message.content,
             k=3,
-            threshold=0.7
+            threshold=0.5  # Bajado de 0.7 a 0.5 para capturar más resultados relevantes
         )
         
         # Extraer contenido de los documentos relevantes
