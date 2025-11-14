@@ -231,25 +231,23 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
         client = LLMFactory.create_groq_client()
         
         llm_start = time.time()
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model="openai/gpt-oss-120b",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
+            input=prompt,
+            reasoning={"effort": "medium"},
+            text={
+                "format": {
+                    "type": "json_schema",
                     "name": "orchestrator_decision",
                     "strict": True,
                     "schema": ORCHESTRATOR_SCHEMA
                 }
             },
-            reasoning={"effort": "medium"},
             temperature=0.2  # Bajo para consistencia
         )
         
         llm_time = (time.time() - llm_start) * 1000
-        decision = json.loads(response.choices[0].message.content)
+        decision = json.loads(response.output_text)
         
         print(f"🧠 [ORCHESTRATOR] Decision: confidence={decision['confidence']:.2f}, strategy={decision['kb_search_strategy']}, handoff={decision['should_handoff']}")
         print(f"   Reasoning: {decision['reasoning'][:100]}...")

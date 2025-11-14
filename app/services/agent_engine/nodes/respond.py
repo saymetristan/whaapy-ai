@@ -30,23 +30,21 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         role = "User" if msg.type == 'human' else "Assistant"
         conversation_text += f"{role}: {msg.content}\n"
     
-    # Llamar a Groq Chat Completions vía factory
+    # Llamar a Groq Responses API vía factory
     try:
         client = LLMFactory.create_groq_client()
         model = config.get('model', 'openai/gpt-oss-120b')
         
-        # Groq Chat Completions con reasoning medium
+        # Groq Responses API con reasoning medium
         llm_start = time.time()
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=model,
-            messages=[
-                {"role": "user", "content": conversation_text}
-            ],
+            input=conversation_text,
             reasoning={"effort": "medium"},
             temperature=0.2
         )
         
-        response_content = response.choices[0].message.content
+        response_content = response.output_text
         
         llm_time = (time.time() - llm_start) * 1000
         respond_time = (time.time() - respond_start) * 1000
