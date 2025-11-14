@@ -234,9 +234,17 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
             model="gpt-5-nano",
             input=prompt,
             reasoning={"effort": "extended"},  # Extended reasoning para análisis profundo
-            text={"verbosity": "low"}  # Respuestas concisas para ahorrar tokens
-            # Note: Responses API no soporta response_format/json_schema
-            # gpt-5-nano es muy bueno siguiendo instrucciones de JSON en el prompt
+            text={
+                "verbosity": "low",  # Respuestas concisas para ahorrar tokens
+                "format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "orchestrator_decision",
+                        "strict": True,
+                        "schema": ORCHESTRATOR_SCHEMA
+                    }
+                }
+            }
         )
         
         decision = json.loads(response.output_text)
