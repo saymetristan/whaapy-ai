@@ -153,45 +153,60 @@ class KnowledgeBase:
         # 2. Convertir embedding a formato string para PostgreSQL
         query_embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
         
-        # 3. Buscar usando función ai.match_documents
+        # 3. Buscar usando pgvector similarity search directo
         conn = get_db_connection()
         cursor = conn.cursor()
         
         try:
-            cursor.execute(
-                """
-                SELECT id, document_id, chunk_index, content, metadata, similarity
-                FROM ai.match_documents(
-                    %s::ai.vector,
-                    %s::double precision,
-                    %s::integer,
-                    %s::uuid,
-                    %s::uuid[]
-                )
-                """,
-                (
-                    query_embedding_str,
-                    threshold,
-                    k,
-                    business_id,
-                    document_ids
-                )
-            )
+            # Construir WHERE clause para document_ids si se especifica
+            doc_filter = ""
+            params = [query_embedding_str, business_id, k]
+            
+            if document_ids and len(document_ids) > 0:
+                placeholders = ','.join(['%s'] * len(document_ids))
+                doc_filter = f"AND document_id IN ({placeholders})"
+                params.extend(document_ids)
+            
+            query_sql = f"""
+                SELECT 
+                    id,
+                    document_id,
+                    chunk_index,
+                    content,
+                    metadata,
+                    1 - (embedding <=> %s::vector) as similarity
+                FROM ai.documents_embeddings
+                WHERE business_id = %s
+                {doc_filter}
+                ORDER BY embedding <=> %s::vector
+                LIMIT %s
+            """
+            
+            # Agregar query_embedding_str una segunda vez para el ORDER BY
+            params_with_order = [params[0], params[1]]  # embedding, business_id
+            if document_ids and len(document_ids) > 0:
+                params_with_order.extend(document_ids)
+            params_with_order.extend([params[0], params[2]])  # embedding para ORDER BY, limit
+            
+            cursor.execute(query_sql, params_with_order)
             
             results = cursor.fetchall()
             
-            # Los resultados son RealDictCursor, usar nombres de columna
-            return [
+            # Filtrar por threshold
+            filtered_results = [
                 {
-                    "id": str(row["id"]),
-                    "document_id": str(row["document_id"]),
-                    "chunk_index": row["chunk_index"],
-                    "content": row["content"],
-                    "metadata": row["metadata"],
-                    "similarity": row["similarity"]
+                    "id": str(row[0]),
+                    "document_id": str(row[1]),
+                    "chunk_index": row[2],
+                    "content": row[3],
+                    "metadata": row[4],
+                    "similarity": float(row[5])
                 }
                 for row in results
+                if float(row[5]) >= threshold
             ]
+            
+            return filtered_results
         
         except Exception as e:
             raise e
