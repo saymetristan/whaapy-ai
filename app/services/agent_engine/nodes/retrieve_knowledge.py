@@ -51,7 +51,9 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
             )
         
     except Exception as e:
-        print(f"Error retrieving knowledge: {e}")
+        print(f"❌ [KB] Error en búsqueda: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         retrieved_docs = []
         
         # Log failed tool execution
@@ -62,7 +64,7 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 tool_name='knowledge_base_search',
                 duration_ms=duration_ms,
                 success=False,
-                error=str(e),
+                error=f"{type(e).__name__}: {str(e)}",
                 request_data={'query': last_user_message.content, 'k': 3, 'threshold': 0.5}
             )
     
