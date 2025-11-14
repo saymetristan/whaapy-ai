@@ -173,11 +173,11 @@ class KnowledgeBase:
                     chunk_index,
                     content,
                     metadata,
-                    1 - (embedding <=> %s::ai.vector) as similarity
+                    1 - (embedding <=> %s) as similarity
                 FROM ai.documents_embeddings
                 WHERE business_id = %s
                 {doc_filter}
-                ORDER BY embedding <=> %s::ai.vector
+                ORDER BY embedding <=> %s
                 LIMIT %s
             """
             

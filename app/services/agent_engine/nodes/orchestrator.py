@@ -46,7 +46,8 @@ ORCHESTRATOR_SCHEMA = {
     },
     "required": [
         "intent", "confidence", "needs_knowledge_base",
-        "kb_search_strategy", "should_handoff", "response_strategy",
+        "kb_search_strategy", "search_queries", "complexity",
+        "should_handoff", "handoff_reason", "response_strategy",
         "customer_sentiment", "reasoning"
     ],
     "additionalProperties": False
