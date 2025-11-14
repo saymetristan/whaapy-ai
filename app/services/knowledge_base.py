@@ -79,7 +79,7 @@ class KnowledgeBase:
                         'total_chunks': len(chunks)
                     }
                 ) as tracker:
-                embedding = await self.embeddings.aembed_query(chunk)
+                    embedding = await self.embeddings.aembed_query(chunk)
                     
                     # Estimar tokens
                     estimated_tokens = estimate_embedding_tokens(chunk)
