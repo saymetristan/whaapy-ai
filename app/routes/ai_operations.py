@@ -119,19 +119,19 @@ Responde en JSON con este formato exacto:
             reasoning_effort='low'
         ) as tracker:
             # Responses API es SÍNCRONA, no usar await
-            # Solo usar reasoning/text si el modelo soporta GPT-5 controls
-            if is_gpt5_model(model):
-                response = client.responses.create(
-                    model=model,
-                    input=analysis_input,
-                    reasoning={ "effort": "low" },
-                    text={ "verbosity": "low" }
-                )
-            else:
-                # Fallback para modelos no-GPT5 (sin reasoning controls)
-                response = client.responses.create(
-                    model=model,
-                    input=analysis_input
+        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+        if is_gpt5_model(model):
+            response = client.responses.create(
+                model=model,
+                input=analysis_input,
+                reasoning={ "effort": "low" },
+                text={ "verbosity": "low" }
+            )
+        else:
+            # Fallback para modelos no-GPT5 (sin reasoning controls)
+            response = client.responses.create(
+                model=model,
+                input=analysis_input
                 )
             
             # Record tokens
@@ -188,20 +188,20 @@ async def generate_suggestion(
             operation_context={'messages_count': len(request.conversation_history)},
             reasoning_effort='medium' if is_gpt5_model(request.model) else None
         ) as tracker:
-            # Responses API es SÍNCRONA, no usar await
-            # Solo usar reasoning/text si el modelo soporta GPT-5 controls
-            if is_gpt5_model(request.model):
-                response = client.responses.create(
-                    model=request.model,
-                    input=conversation_text,
-                    reasoning={ "effort": "medium" },
-                    text={ "verbosity": "low" }
-                )
-            else:
-                # Fallback para modelos no-GPT5 (sin reasoning controls)
-                response = client.responses.create(
-                    model=request.model,
-                    input=conversation_text
+        # Responses API es SÍNCRONA, no usar await
+        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+        if is_gpt5_model(request.model):
+            response = client.responses.create(
+                model=request.model,
+                input=conversation_text,
+                reasoning={ "effort": "medium" },
+                text={ "verbosity": "low" }
+            )
+        else:
+            # Fallback para modelos no-GPT5 (sin reasoning controls)
+            response = client.responses.create(
+                model=request.model,
+                input=conversation_text
                 )
             
             # Record tokens
@@ -258,28 +258,28 @@ async def extract_document(
                 model='gpt-5-mini',
                 operation_context={'page_number': idx + 1, 'total_pages': len(request.page_images)}
             ) as tracker:
-                # Chat Completions con visión (gpt-5-mini soporta visión)
-                response = client.chat.completions.create(
-                    model="gpt-5-mini",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": "Extract all text from this document image. Return only the text content, no explanations. If no text, return 'NO_TEXT_FOUND'."
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/png;base64,{base64_image}"
-                                    }
+            # Chat Completions con visión (gpt-5-mini soporta visión)
+            response = client.chat.completions.create(
+                model="gpt-5-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Extract all text from this document image. Return only the text content, no explanations. If no text, return 'NO_TEXT_FOUND'."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{base64_image}"
                                 }
-                            ]
-                        }
-                    ],
-                    max_tokens=4096
-                )
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=4096
+            )
                 
                 # Record tokens
                 tracker.record(

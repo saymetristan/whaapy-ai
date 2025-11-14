@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from app.services.agent_engine.llm_factory import LLMFactory, is_gpt5_model
 from app.services.llm_tracker import LLMCallTracker
+from app.services.agent_engine.prompt_composer import PromptComposer
 from langchain_core.messages import AIMessage
 
 
@@ -8,51 +9,22 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
     """
     Nodo de generación de respuesta usando Responses API.
     Migrado de Chat Completions a Responses API para mejor performance y caching.
+    Ahora usa PromptComposer para construcción multi-layer de prompts (Sprint 5).
     """
     import time
     respond_start = time.time()
     
-    # Construir system prompt con contexto de KB
-    system_prompt = config.get('system_prompt', 'Eres un asistente virtual de atención al cliente.')
+    # Usar PromptComposer para construir el prompt completo (Sprint 5)
+    system_prompt = PromptComposer.compose_full_prompt(
+        config=config,
+        state=state,
+        include_kb_context=True,
+        include_disclaimers=True
+    )
     
-    # Agregar contexto de knowledge base si existe
-    if state.get('retrieved_docs'):
-        context = "\n\n".join(state['retrieved_docs'])
-        system_prompt += f"\n\nInformación relevante de la base de conocimiento:\n{context}"
-    
-    # NUEVO: Agregar instrucciones según confidence (Sprint 4)
+    # Logging de confidence (mantener para debugging)
     confidence = state.get('confidence', 1.0)
     suggest_handoff = state.get('suggest_handoff_in_response', False)
-    
-    if confidence < 0.4:
-        # Very low confidence → force handoff directo
-        system_prompt += """
-
-CRÍTICO: Tu nivel de confianza sobre esta consulta es MUY BAJO (<40%).
-No tienes información suficiente para responder con certeza.
-DEBES ofrecer conectar al usuario con un asesor humano de forma directa y clara.
-Ejemplo: "Para ayudarte mejor con esto, te recomiendo hablar con uno de nuestros asesores. ¿Te conecto?"
-"""
-        print(f"⚠️ [RESPOND] Disclaimer inyectado (confidence {confidence:.2f}) - FORCE HANDOFF")
-    elif 0.4 <= confidence < 0.6:
-        # Low-medium confidence → sugerir handoff naturalmente
-        system_prompt += """
-
-NOTA: Tu nivel de confianza sobre esta consulta es MEDIO (40-60%).
-Responde lo mejor que puedas con la información disponible, pero al final
-sugiere de forma natural que pueden contactar a un asesor si necesitan más ayuda.
-Ejemplo: "Si necesitas más detalles específicos, puedo conectarte con un asesor 👤"
-"""
-        print(f"⚠️ [RESPOND] Disclaimer inyectado (confidence {confidence:.2f}) - SUGGEST HANDOFF")
-    elif suggest_handoff:
-        # Orchestrator detectó necesidad de handoff (independiente de confidence)
-        system_prompt += """
-
-NOTA: Aunque puedes responder, el usuario podría beneficiarse de atención humana.
-Incluye sutilmente la opción de hablar con un asesor si lo prefiere.
-"""
-        print(f"ℹ️ [RESPOND] Disclaimer sutil (suggest_handoff=true, confidence {confidence:.2f})")
-    
     print(f"📊 [RESPOND] Confidence: {confidence:.2f}, Suggest handoff: {suggest_handoff}")
     
     # Obtener últimos 5 mensajes para contexto
