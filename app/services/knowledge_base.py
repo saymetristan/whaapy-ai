@@ -256,6 +256,11 @@ class KnowledgeBase:
             if results:
                 similarities = [float(row['similarity']) for row in results]
                 print(f"📊 [KB] Similarities: {[f'{s:.3f}' for s in similarities[:5]]}")  # Top 5
+                
+                # Preview del contenido top 1 para debugging
+                if len(results) > 0:
+                    top_content = results[0]['content'][:100]
+                    print(f"📄 [KB] Top result preview: {top_content}...")
             
             # Filtrar por threshold
             # RealDictCursor retorna dict, no tuplas

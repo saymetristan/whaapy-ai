@@ -31,6 +31,27 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         role = "User" if msg.type == 'human' else "Assistant"
         conversation_text += f"{role}: {msg.content}\n"
     
+    # Guardrail anti-hallucination: Si NO hay contexto KB, instruir explícitamente
+    retrieved_docs = state.get('retrieved_docs', [])
+    has_context = retrieved_docs and len(retrieved_docs) > 0
+    
+    if not has_context:
+        # SIN contexto KB → instruir explícitamente que NO alucine
+        system_instruction = """
+
+CRITICAL INSTRUCTION: 
+You DO NOT have any information from the knowledge base about this query.
+You MUST respond with:
+"Lo siento, no tengo información específica sobre eso en mi base de conocimiento. ¿Te gustaría que te conecte con un asesor humano para ayudarte mejor?"
+
+DO NOT make up or invent any information. DO NOT provide generic answers.
+If you don't have the information in the knowledge base, you MUST say so and offer human assistance."""
+        
+        conversation_text = f"{system_instruction}\n\n{conversation_text}"
+        print("⚠️ [RESPOND] NO KB context → usando guardrail anti-hallucination")
+    else:
+        print(f"✅ [RESPOND] KB context presente: {len(retrieved_docs)} docs")
+    
     # Llamar a Groq Responses API vía factory + tracking
     try:
         client = LLMFactory.create_groq_client()

@@ -25,12 +25,24 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # Buscar en knowledge base
     kb = KnowledgeBase()
     
+    # Threshold adaptativo según confidence del orchestrator
+    confidence = state.get('confidence', 0.5)
+    
+    if confidence > 0.85:
+        threshold = 0.4  # Alta confianza → más estricto
+    elif confidence > 0.7:
+        threshold = 0.35  # Media confianza → balanceado
+    else:
+        threshold = 0.3  # Baja confianza → permisivo
+    
+    print(f"🎯 [KB] Adaptive threshold: {threshold} (confidence={confidence:.2f})")
+    
     try:
         results = await kb.search(
             business_id=state['business_id'],
             query=last_user_message.content,
             k=3,
-            threshold=0.4  # Bajado a 0.4 para capturar nombres propios y queries marginales
+            threshold=threshold
         )
         
         # Extraer contenido de los documentos relevantes
@@ -46,7 +58,7 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 tool_name='knowledge_base_search',
                 duration_ms=duration_ms,
                 success=True,
-                request_data={'query': last_user_message.content, 'k': 3, 'threshold': 0.4},
+                request_data={'query': last_user_message.content, 'k': 3, 'threshold': threshold},
                 response_data={'results_count': len(retrieved_docs)}
             )
         
@@ -65,7 +77,7 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 duration_ms=duration_ms,
                 success=False,
                 error=f"{type(e).__name__}: {str(e)}",
-                request_data={'query': last_user_message.content, 'k': 3, 'threshold': 0.5}
+                request_data={'query': last_user_message.content, 'k': 3, 'threshold': threshold}
             )
     
     return {
