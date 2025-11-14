@@ -299,7 +299,8 @@ class KnowledgeBase:
         k: int = 5,
         semantic_weight: float = 0.6,
         keyword_weight: float = 0.4,
-        threshold: float = 0.3
+        threshold: float = 0.3,
+        return_scores: bool = True
     ) -> List[Dict[str, Any]]:
         """
         Hybrid search: combina semantic (embeddings) + keyword (full-text).
@@ -311,10 +312,11 @@ class KnowledgeBase:
             semantic_weight: Peso para cosine similarity (default 0.7)
             keyword_weight: Peso para keyword match (default 0.3)
             threshold: Threshold mínimo para combined_score (default 0.3)
+            return_scores: Si True, incluye semantic_score, keyword_score, combined_score (default True)
         
         Returns:
             Lista de chunks ordenados por combined_score descendente
-            Cada chunk incluye: semantic_score, keyword_score, combined_score
+            Cada chunk incluye: content, metadata, y opcionalmente scores
         """
         import time
         search_start = time.time()
@@ -409,19 +411,23 @@ class KnowledgeBase:
                         print(f"       \"{preview}...\"")
                 
                 # Formatear resultados
-                formatted_results = [
-                    {
+                formatted_results = []
+                for row in results:
+                    result = {
                         "id": str(row['id']),
                         "document_id": str(row['document_id']),
                         "chunk_index": row['chunk_index'],
                         "content": row['content'],
-                        "metadata": row['metadata'] if row['metadata'] else {},
-                        "semantic_score": float(row['semantic_score']),
-                        "keyword_score": float(row['keyword_score']),
-                        "combined_score": float(row['combined_score'])
+                        "metadata": row['metadata'] if row['metadata'] else {}
                     }
-                    for row in results
-                ]
+                    
+                    # Incluir scores solo si se solicitan (útil para debugging)
+                    if return_scores:
+                        result["semantic_score"] = float(row['semantic_score'])
+                        result["keyword_score"] = float(row['keyword_score'])
+                        result["combined_score"] = float(row['combined_score'])
+                    
+                    formatted_results.append(result)
                 
                 total_time = (time.time() - search_start) * 1000
                 print(f"✅ [KB] Hybrid search completada: {len(formatted_results)} chunks en {total_time:.0f}ms")

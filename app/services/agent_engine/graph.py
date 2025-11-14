@@ -4,8 +4,8 @@ from app.services.agent_engine.state import AgentState
 from app.services.agent_engine.nodes.greet import greet_node
 from app.services.agent_engine.nodes.smart_router import smart_router_node
 from app.services.agent_engine.nodes.orchestrator import orchestrator_node
-from app.services.agent_engine.nodes.retrieve_knowledge import retrieve_knowledge_node
-# call_tools_node será usado en Sprint 2+ cuando se implementen herramientas dinámicas
+from app.services.agent_engine.nodes.optimized_rag import optimized_rag_node
+# call_tools_node será usado en Sprint 3+ cuando se implementen herramientas dinámicas
 from app.services.agent_engine.nodes.respond import respond_node
 from app.services.agent_engine.nodes.handoff import handoff_node
 
@@ -56,8 +56,8 @@ def route_after_orchestrator(state: Dict[str, Any]) -> str:
     
     # Prioridad 3: Necesita KB (incluso en primer mensaje)
     if needs_kb:
-        print(f"🔀 [ROUTER] retrieve_knowledge (confidence={confidence:.2f}, first_msg={is_first_message})")
-        return 'retrieve_knowledge'
+        print(f"🔀 [ROUTER] optimized_rag (confidence={confidence:.2f}, first_msg={is_first_message})")
+        return 'optimized_rag'
     
     # Prioridad 4: Primer mensaje sin necesidad de KB → greet simple
     if is_first_message:
@@ -73,7 +73,7 @@ def create_agent_graph():
     """
     Crear y compilar el grafo del agente con LangGraph.
     
-    Flujo optimizado (Sprint 1):
+    Flujo optimizado (Sprint 2):
     START → smart_router → [conditional]
       ├─ fast_path (40%) → respond → END
       └─ full (60%) → orchestrator → [conditional routing] → END
@@ -82,7 +82,7 @@ def create_agent_graph():
     - Si confidence < 0.4 → force_handoff → END
     - Si 0.4 <= confidence < 0.6 → suggest_handoff (set flag, continuar)
     - Si is_first_message → greet → respond → END
-    - Si needs_knowledge_base → retrieve_knowledge → respond → END
+    - Si needs_knowledge_base → optimized_rag (multi-query + reranking) → respond → END
     - Else → respond → END
     """
     workflow = StateGraph(AgentState)
@@ -91,8 +91,8 @@ def create_agent_graph():
     workflow.add_node("smart_router", smart_router_node)
     workflow.add_node("orchestrator", orchestrator_node)
     workflow.add_node("greet", greet_node)
-    workflow.add_node("retrieve_knowledge", retrieve_knowledge_node)
-    # call_tools no se agrega porque no se usa en Sprint 1 (será para Sprint 2+)
+    workflow.add_node("optimized_rag", optimized_rag_node)
+    # call_tools no se agrega porque no se usa en Sprint 2 (será para Sprint 3+)
     workflow.add_node("respond", respond_node)
     workflow.add_node("handoff", handoff_node)
     
@@ -116,7 +116,7 @@ def create_agent_graph():
         {
             "force_handoff": "handoff",
             "greet": "greet",
-            "retrieve_knowledge": "retrieve_knowledge",
+            "optimized_rag": "optimized_rag",
             "direct_respond": "respond"
         }
     )
@@ -124,8 +124,8 @@ def create_agent_graph():
     # ✅ Greet siempre va a respond después
     workflow.add_edge("greet", "respond")
     
-    # ✅ Retrieve knowledge va a respond
-    workflow.add_edge("retrieve_knowledge", "respond")
+    # ✅ Optimized RAG va a respond
+    workflow.add_edge("optimized_rag", "respond")
     
     # ✅ Respond y handoff terminan
     workflow.add_edge("respond", END)
