@@ -222,6 +222,11 @@ class KnowledgeBase:
             query_time = (time.time() - query_start) * 1000
             print(f"⏱️ [KB] Query SQL ejecutada en {query_time:.0f}ms ({len(results)} resultados)")
             
+            # Log todas las similarities antes de filtrar
+            if results:
+                similarities = [float(row['similarity']) for row in results]
+                print(f"📊 [KB] Similarities: {[f'{s:.3f}' for s in similarities[:5]]}")  # Top 5
+            
             # Filtrar por threshold
             # RealDictCursor retorna dict, no tuplas
             filtered_results = [
