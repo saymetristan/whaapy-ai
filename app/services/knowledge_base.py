@@ -292,6 +292,145 @@ class KnowledgeBase:
             cursor.close()
             return_db_connection(conn)
     
+    async def hybrid_search(
+        self,
+        business_id: str,
+        query: str,
+        k: int = 5,
+        semantic_weight: float = 0.7,
+        keyword_weight: float = 0.3,
+        threshold: float = 0.3
+    ) -> List[Dict[str, Any]]:
+        """
+        Hybrid search: combina semantic (embeddings) + keyword (full-text).
+        
+        Args:
+            business_id: UUID del negocio
+            query: Query de búsqueda
+            k: Número máximo de resultados
+            semantic_weight: Peso para cosine similarity (default 0.7)
+            keyword_weight: Peso para keyword match (default 0.3)
+            threshold: Threshold mínimo para combined_score (default 0.3)
+        
+        Returns:
+            Lista de chunks ordenados por combined_score descendente
+            Cada chunk incluye: semantic_score, keyword_score, combined_score
+        """
+        import time
+        search_start = time.time()
+        
+        # 1. Generar embedding para semantic search
+        embed_start = time.time()
+        
+        async with LLMCallTracker(
+            business_id=business_id,
+            operation_type='embedding',
+            provider='openai',
+            model=EMBEDDINGS_MODEL,
+            operation_context={'operation': 'hybrid_search_query', 'query_length': len(query)}
+        ) as tracker:
+            query_embedding = await self.embeddings.aembed_query(query)
+            
+            # Embeddings: estimar tokens (1 token ≈ 4 chars)
+            estimated_tokens = estimate_embedding_tokens(query)
+            tracker.record(input_tokens=estimated_tokens, output_tokens=0)
+        
+        query_embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
+        embed_time = (time.time() - embed_start) * 1000
+        print(f"⏱️ [KB] Embedding generado en {embed_time:.0f}ms")
+        
+        # 2. Ejecutar hybrid query
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                # Query híbrido: LEFT JOIN semantic + keyword scores
+                query_sql = """
+                    WITH semantic_scores AS (
+                        SELECT 
+                            id,
+                            document_id,
+                            chunk_index,
+                            content,
+                            metadata,
+                            1 - (embedding OPERATOR(ai.<=>) %s::ai.vector) as semantic_score
+                        FROM ai.documents_embeddings
+                        WHERE business_id = %s
+                          AND embedding IS NOT NULL
+                    ),
+                    keyword_scores AS (
+                        SELECT
+                            id,
+                            ts_rank(content_tsvector, plainto_tsquery('spanish', %s)) as keyword_score
+                        FROM ai.documents_embeddings
+                        WHERE business_id = %s
+                          AND content_tsvector @@ plainto_tsquery('spanish', %s)
+                    )
+                    SELECT 
+                        s.id,
+                        s.document_id,
+                        s.chunk_index,
+                        s.content,
+                        s.metadata,
+                        s.semantic_score,
+                        COALESCE(k.keyword_score, 0) as keyword_score,
+                        (s.semantic_score * %s + COALESCE(k.keyword_score, 0) * %s) as combined_score
+                    FROM semantic_scores s
+                    LEFT JOIN keyword_scores k ON s.id = k.id
+                    WHERE (s.semantic_score * %s + COALESCE(k.keyword_score, 0) * %s) >= %s
+                    ORDER BY combined_score DESC
+                    LIMIT %s
+                """
+                
+                params = [
+                    query_embedding_str, business_id,  # semantic search
+                    query, business_id, query,          # keyword search (3x: rank + WHERE + WHERE)
+                    semantic_weight, keyword_weight,    # pesos para combined_score
+                    semantic_weight, keyword_weight,    # pesos para WHERE threshold
+                    threshold,                          # threshold mínimo
+                    k                                   # limit
+                ]
+                
+                query_start = time.time()
+                cursor.execute(query_sql, params)
+                results = cursor.fetchall()
+                query_time = (time.time() - query_start) * 1000
+                
+                print(f"⏱️ [KB] Hybrid query ejecutada en {query_time:.0f}ms ({len(results)} resultados)")
+                
+                # Logging de scores para debugging
+                if results:
+                    print(f"📊 [KB] Top 3 hybrid scores:")
+                    for i, row in enumerate(results[:3]):
+                        sem = float(row['semantic_score'])
+                        kw = float(row['keyword_score'])
+                        combined = float(row['combined_score'])
+                        preview = row['content'][:60].replace('\n', ' ')
+                        print(f"  #{i+1}: sem={sem:.3f} kw={kw:.3f} → combined={combined:.3f}")
+                        print(f"       \"{preview}...\"")
+                
+                # Formatear resultados
+                formatted_results = [
+                    {
+                        "id": str(row['id']),
+                        "document_id": str(row['document_id']),
+                        "chunk_index": row['chunk_index'],
+                        "content": row['content'],
+                        "metadata": row['metadata'] if row['metadata'] else {},
+                        "semantic_score": float(row['semantic_score']),
+                        "keyword_score": float(row['keyword_score']),
+                        "combined_score": float(row['combined_score'])
+                    }
+                    for row in results
+                ]
+                
+                total_time = (time.time() - search_start) * 1000
+                print(f"✅ [KB] Hybrid search completada: {len(formatted_results)} chunks en {total_time:.0f}ms")
+                
+                return formatted_results
+                
+        finally:
+            return_db_connection(conn)
+    
     async def get_stats(self, business_id: str) -> Dict[str, Any]:
         """Obtener estadísticas de embeddings del negocio"""
         conn = get_db_connection()

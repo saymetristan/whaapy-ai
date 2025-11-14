@@ -40,27 +40,35 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
     print(f"🎯 [KB] Adaptive threshold: {threshold} (confidence={confidence:.2f})")
     
     try:
-        results = await kb.search(
+        results = await kb.hybrid_search(
             business_id=state['business_id'],
             query=last_user_message.content,
             k=3,
+            semantic_weight=0.7,
+            keyword_weight=0.3,
             threshold=threshold
         )
         
         # Extraer contenido de los documentos relevantes
         retrieved_docs = [doc['content'] for doc in results]
         
-        print(f"📚 Retrieved {len(retrieved_docs)} docs from KB")
+        print(f"📚 Retrieved {len(retrieved_docs)} docs from KB (hybrid)")
         
         # Log tool execution
         if execution_id:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             save_tool_execution(
                 execution_id=execution_id,
-                tool_name='knowledge_base_search',
+                tool_name='knowledge_base_hybrid_search',
                 duration_ms=duration_ms,
                 success=True,
-                request_data={'query': last_user_message.content, 'k': 3, 'threshold': threshold},
+                request_data={
+                    'query': last_user_message.content, 
+                    'k': 3, 
+                    'threshold': threshold,
+                    'semantic_weight': 0.7,
+                    'keyword_weight': 0.3
+                },
                 response_data={'results_count': len(retrieved_docs)}
             )
         
@@ -75,7 +83,7 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             save_tool_execution(
                 execution_id=execution_id,
-                tool_name='knowledge_base_search',
+                tool_name='knowledge_base_hybrid_search',
                 duration_ms=duration_ms,
                 success=False,
                 error=f"{type(e).__name__}: {str(e)}",
