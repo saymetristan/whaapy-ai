@@ -2,6 +2,7 @@ import json
 from typing import Dict, Any, List, Optional
 from app.services.agent_engine.llm_factory import LLMFactory
 from app.services.llm_tracker import LLMCallTracker
+from app.services.agent_engine import conversation_memory
 from langchain_core.messages import BaseMessage
 
 
@@ -199,14 +200,26 @@ async def orchestrator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     is_first_message = len(human_messages) == 1
     current_message = human_messages[-1].content
     
-    # Obtener summary de conversación si existe
-    conversation_summary = state.get('conversation_summary', {})
-    summary_text = "Sin resumen previo"
+    # Sprint 3: Cargar conversation summary (genera o usa cached)
+    conversation_summary = await conversation_memory.get_or_create_summary(
+        conversation_id=state.get('conversation_id'),
+        messages=messages,
+        business_id=state['business_id'],
+        execution_id=state.get('execution_id')
+    )
+    
+    # Guardar summary en state para referencia
+    state['conversation_summary'] = conversation_summary
+    
+    # Formatear summary para el prompt
+    summary_text = "Sin resumen previo (conversación corta)"
     if conversation_summary and isinstance(conversation_summary, dict):
         summary_text = f"""
-Tema: {conversation_summary.get('main_topic', 'N/A')}
-Estado: {conversation_summary.get('conversation_state', 'ongoing')}
-Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
+Resumen conversación previa:
+{conversation_summary.get('text', 'N/A')}
+
+Temas tratados: {', '.join(conversation_summary.get('topics', []))}
+Última actualización: {conversation_summary.get('last_updated_at', 'N/A')}
 """
     
     # Construir contexto con sliding window

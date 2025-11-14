@@ -40,6 +40,13 @@ class AgentState(dict):
     use_full_orchestrator: Optional[bool]  # Flag del smart_router
     conversation_summary: Optional[Dict[str, Any]]  # Summary para Sprint 3
     
+    # Sprint 3: Validation & Self-Correction fields
+    validation_passed: Optional[bool]  # Si la respuesta pasó validation
+    quality_score: Optional[float]  # 0.0-1.0 score de calidad
+    validation_issues: Optional[List[str]]  # Lista de problemas encontrados
+    validation_feedback: Optional[str]  # Feedback para mejorar
+    was_retried: Optional[bool]  # Si se hizo retry de respuesta
+    
     # Knowledge base
     retrieved_docs: Optional[str]
     
@@ -86,6 +93,12 @@ def create_initial_state(
         suggest_handoff_in_response=False,
         use_full_orchestrator=None,
         conversation_summary=None,
+        # Sprint 3: Validation fields
+        validation_passed=None,
+        quality_score=None,
+        validation_issues=None,
+        validation_feedback=None,
+        was_retried=False,
         retrieved_docs=None,
         nodes_visited=[],
         tools_used=[],

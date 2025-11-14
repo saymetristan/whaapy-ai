@@ -1,4 +1,5 @@
 import uuid
+import json
 from typing import Dict, Any, Optional
 from datetime import datetime
 from langchain_core.messages import HumanMessage
@@ -154,7 +155,12 @@ class AgentEngine:
                                 'kb_search_strategy', %s,
                                 'response_strategy', %s,
                                 'complexity', %s,
-                                'customer_sentiment', %s
+                                'customer_sentiment', %s,
+                                'validation_passed', %s,
+                                'quality_score', %s,
+                                'validation_issues', %s,
+                                'was_retried', %s,
+                                'conversation_summary_used', %s
                             )
                         WHERE id = %s
                     """, (
@@ -173,6 +179,12 @@ class AgentEngine:
                         result.get('response_strategy'),
                         result.get('complexity'),
                         result.get('customer_sentiment'),
+                        # Sprint 3: Validation metadata
+                        result.get('validation_passed'),
+                        result.get('quality_score'),
+                        json.dumps(result.get('validation_issues')) if result.get('validation_issues') else None,
+                        result.get('was_retried', False),
+                        bool(result.get('conversation_summary')),
                         execution_id
                     ))
                     
