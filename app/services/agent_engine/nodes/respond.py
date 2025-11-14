@@ -42,8 +42,7 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
             response = client.responses.create(
                 model=model,
                 input=conversation_text,
-                reasoning={ "effort": "medium" },  # Razonamiento moderado para respuestas
-                text={ "verbosity": "medium" }
+                reasoning={ "effort": "medium" }  # Razonamiento moderado para respuestas
             )
         else:
             # Fallback para modelos no-GPT5 (sin reasoning controls)

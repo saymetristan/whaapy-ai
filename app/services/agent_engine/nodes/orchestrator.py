@@ -230,28 +230,29 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
         conversation_summary=summary_text
     )
     
-    # Llamar a gpt-5-nano con structured output
+    # Llamar a Groq gpt-oss-120b con structured output
     try:
-        client = LLMFactory.create_responses_client()
+        client = LLMFactory.create_groq_client()
         
         llm_start = time.time()
-        response = client.responses.create(
-            model="gpt-5-mini",
-            input=prompt,
-            # SIN reasoning para velocidad (~2-3s vs 27s con gpt-5-nano+reasoning:high)
-            text={
-                "verbosity": "low",  # Respuestas concisas para ahorrar tokens
-                "format": {
-                    "type": "json_schema",
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
                     "name": "orchestrator_decision",
                     "strict": True,
                     "schema": ORCHESTRATOR_SCHEMA
                 }
-            }
+            },
+            temperature=0.2  # Bajo para consistencia
         )
         
         llm_time = (time.time() - llm_start) * 1000
-        decision = json.loads(response.output_text)
+        decision = json.loads(response.choices[0].message.content)
         
         print(f"🧠 [ORCHESTRATOR] Decision: confidence={decision['confidence']:.2f}, strategy={decision['kb_search_strategy']}, handoff={decision['should_handoff']}")
         print(f"   Reasoning: {decision['reasoning'][:100]}...")

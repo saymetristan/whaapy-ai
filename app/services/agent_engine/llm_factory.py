@@ -127,6 +127,21 @@ class LLMFactory:
         return OpenAI(api_key=api_key)
     
     @staticmethod
+    def create_groq_client() -> OpenAI:
+        """
+        Crear cliente OpenAI apuntando a Groq API.
+        
+        Groq es compatible con OpenAI SDK, solo cambiamos base_url.
+        Se usa para el orchestrator (gpt-oss-120b) por su velocidad.
+        """
+        from app.config import settings
+        
+        return OpenAI(
+            base_url=settings.groq_base_url,
+            api_key=settings.groq_api_key
+        )
+    
+    @staticmethod
     async def call_gpt4o_mini(input_text: str, system_prompt: str = "") -> str:
         """
         Llamar a gpt-4o-mini para análisis rápido (intent classification, etc).
