@@ -146,6 +146,9 @@ class KnowledgeBase:
         
         Returns: Lista de chunks relevantes con similarity scores
         """
+        import time
+        search_start = time.time()
+        
         # 0. Quick check: si no hay documentos con embeddings, retornar vacío
         print(f"🔍 [KB] Buscando en business_id={business_id}, query='{query[:50]}...'")
         
@@ -170,7 +173,10 @@ class KnowledgeBase:
             return_db_connection(conn)
         
         # 1. Generar embedding de la query
+        embed_start = time.time()
         query_embedding = await self.embeddings.aembed_query(query)
+        embed_time = (time.time() - embed_start) * 1000
+        print(f"⏱️ [KB] Embedding generado en {embed_time:.0f}ms")
         
         # 2. Convertir embedding a formato string para PostgreSQL
         query_embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
@@ -210,9 +216,11 @@ class KnowledgeBase:
                 params_with_order.extend(document_ids)
             params_with_order.extend([params[0], params[2]])  # embedding para ORDER BY, limit
             
+            query_start = time.time()
             cursor.execute(query_sql, params_with_order)
-            
             results = cursor.fetchall()
+            query_time = (time.time() - query_start) * 1000
+            print(f"⏱️ [KB] Query SQL ejecutada en {query_time:.0f}ms ({len(results)} resultados)")
             
             # Filtrar por threshold
             # RealDictCursor retorna dict, no tuplas
@@ -229,10 +237,12 @@ class KnowledgeBase:
                 if float(row['similarity']) >= threshold
             ]
             
+            total_time = (time.time() - search_start) * 1000
             print(f"✅ [KB] Encontrados {len(filtered_results)}/{len(results)} chunks (threshold={threshold})")
             if filtered_results:
                 top_similarity = max(r['similarity'] for r in filtered_results)
                 print(f"📈 [KB] Top similarity: {top_similarity:.3f}")
+            print(f"⏱️ [KB] Búsqueda total: {total_time:.0f}ms (embed: {embed_time:.0f}ms, query: {query_time:.0f}ms)")
             
             return filtered_results
         
