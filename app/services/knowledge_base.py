@@ -154,10 +154,11 @@ class KnowledgeBase:
         
         try:
             cursor.execute(
-                "SELECT COUNT(*) FROM ai.documents_embeddings WHERE business_id = %s AND embedding IS NOT NULL",
+                "SELECT COUNT(*) as count FROM ai.documents_embeddings WHERE business_id = %s AND embedding IS NOT NULL",
                 (business_id,)
             )
-            count = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            count = result['count'] if result else 0
             
             print(f"📊 [KB] Found {count} chunks con embeddings para business {business_id}")
             
