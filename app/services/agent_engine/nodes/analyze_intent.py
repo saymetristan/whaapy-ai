@@ -5,7 +5,7 @@ from app.services.agent_engine.llm_factory import LLMFactory
 
 async def analyze_intent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Nodo de análisis de intención usando gpt-4o-mini.
+    Nodo de análisis de intención usando gpt-5-nano con minimal reasoning.
     
     Este nodo SIEMPRE se ejecuta primero para determinar:
     - Si es el primer mensaje (para ejecutar greet)
@@ -29,7 +29,7 @@ async def analyze_intent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     is_first_message = len(human_messages) == 1
     message_content = last_user_message.content.lower()
     
-    # Prompt optimizado
+    # Prompt optimizado para gpt-5-nano
     analysis_prompt = f"""Analiza el mensaje y responde SOLO con JSON válido:
 
 Mensaje: "{last_user_message.content}"
@@ -53,8 +53,8 @@ Reglas:
     system_prompt = "Eres un clasificador de intenciones. Responde SOLO con JSON válido."
     
     try:
-        # Usar gpt-4o-mini que SÍ existe y funciona bien
-        response_text = await LLMFactory.call_gpt4o_mini(
+        # Usar gpt-5-nano con minimal reasoning
+        response_text = await LLMFactory.call_gpt5_nano_minimal(
             input_text=analysis_prompt,
             system_prompt=system_prompt
         )
@@ -62,10 +62,12 @@ Reglas:
         # Parsear JSON de la respuesta
         analysis = json.loads(response_text)
         
-        print(f"🧠 Intención analizada: intent={analysis.get('intent')}, needs_knowledge={analysis.get('needs_knowledge')}, first_msg={is_first_message}")
+        print(f"🧠 [GPT-5-NANO] Intención analizada: intent={analysis.get('intent')}, needs_knowledge={analysis.get('needs_knowledge')}, first_msg={is_first_message}")
         
     except Exception as e:
-        print(f"❌ Error analizando intención: {e}")
+        print(f"❌ Error analizando intención con gpt-5-nano: {e}")
+        print(f"❌ Error completo: {str(e)}")
+        
         # Fallback mejorado: detectar preguntas por keywords
         question_keywords = ['qué', 'que', 'cuál', 'cual', 'cómo', 'como', 'cuándo', 'cuando', 
                             'dónde', 'donde', 'por qué', 'porque', '?', 'precio', 'cuesta', 
