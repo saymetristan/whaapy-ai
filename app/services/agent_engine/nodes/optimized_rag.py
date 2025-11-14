@@ -17,7 +17,7 @@ from datetime import datetime
 from app.services.knowledge_base import KnowledgeBase
 from app.services.agent_engine.analytics_tracking import save_tool_execution
 from app.services.agent_engine.rag_metrics import save_rag_metrics
-from app.services.agent_engine.llm_factory import create_groq_client
+from app.services.agent_engine.llm_factory import LLMFactory
 from app.services.llm_tracker import LLMCallTracker
 
 
@@ -43,7 +43,7 @@ async def generate_search_queries(
     # Broad o multi_query: generar variaciones con LLM
     num_variations = 1 if kb_search_strategy == 'broad' else 2
     
-    client = create_groq_client()
+    client = LLMFactory.create_groq_client()
     
     system_prompt = """Eres un experto en reformular preguntas para búsqueda semántica.
 Genera variaciones de la pregunta original enfocándote en:
@@ -177,7 +177,7 @@ async def rerank_results(
     # Limitar a top-10 para reranking (ahorro de tokens)
     chunks_to_rerank = chunks[:10]
     
-    client = create_groq_client()
+    client = LLMFactory.create_groq_client()
     
     # Construir prompt con documentos numerados
     docs_text = "\n\n".join([
