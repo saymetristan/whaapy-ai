@@ -20,6 +20,41 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         context = "\n\n".join(state['retrieved_docs'])
         system_prompt += f"\n\nInformación relevante de la base de conocimiento:\n{context}"
     
+    # NUEVO: Agregar instrucciones según confidence (Sprint 4)
+    confidence = state.get('confidence', 1.0)
+    suggest_handoff = state.get('suggest_handoff_in_response', False)
+    
+    if confidence < 0.4:
+        # Very low confidence → force handoff directo
+        system_prompt += """
+
+CRÍTICO: Tu nivel de confianza sobre esta consulta es MUY BAJO (<40%).
+No tienes información suficiente para responder con certeza.
+DEBES ofrecer conectar al usuario con un asesor humano de forma directa y clara.
+Ejemplo: "Para ayudarte mejor con esto, te recomiendo hablar con uno de nuestros asesores. ¿Te conecto?"
+"""
+        print(f"⚠️ [RESPOND] Disclaimer inyectado (confidence {confidence:.2f}) - FORCE HANDOFF")
+    elif 0.4 <= confidence < 0.6:
+        # Low-medium confidence → sugerir handoff naturalmente
+        system_prompt += """
+
+NOTA: Tu nivel de confianza sobre esta consulta es MEDIO (40-60%).
+Responde lo mejor que puedas con la información disponible, pero al final
+sugiere de forma natural que pueden contactar a un asesor si necesitan más ayuda.
+Ejemplo: "Si necesitas más detalles específicos, puedo conectarte con un asesor 👤"
+"""
+        print(f"⚠️ [RESPOND] Disclaimer inyectado (confidence {confidence:.2f}) - SUGGEST HANDOFF")
+    elif suggest_handoff:
+        # Orchestrator detectó necesidad de handoff (independiente de confidence)
+        system_prompt += """
+
+NOTA: Aunque puedes responder, el usuario podría beneficiarse de atención humana.
+Incluye sutilmente la opción de hablar con un asesor si lo prefiere.
+"""
+        print(f"ℹ️ [RESPOND] Disclaimer sutil (suggest_handoff=true, confidence {confidence:.2f})")
+    
+    print(f"📊 [RESPOND] Confidence: {confidence:.2f}, Suggest handoff: {suggest_handoff}")
+    
     # Obtener últimos 5 mensajes para contexto
     recent_messages = state['messages'][-5:]
     
