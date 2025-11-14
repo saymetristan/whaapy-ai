@@ -236,9 +236,9 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
         
         llm_start = time.time()
         response = client.responses.create(
-            model="gpt-5-nano",
+            model="gpt-5-mini",
             input=prompt,
-            reasoning={"effort": "high"},  # high es el máximo (extended no existe)
+            # SIN reasoning para velocidad (~2-3s vs 27s con gpt-5-nano+reasoning:high)
             text={
                 "verbosity": "low",  # Respuestas concisas para ahorrar tokens
                 "format": {
