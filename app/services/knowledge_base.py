@@ -143,7 +143,7 @@ class KnowledgeBase:
         document_ids: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Búsqueda semántica en la knowledge base usando RAG con pgvector
+        Búsqueda semántica en la knowledge base
         
         Returns: Lista de chunks relevantes con similarity scores
         """
@@ -153,55 +153,47 @@ class KnowledgeBase:
         # 2. Convertir embedding a formato string para PostgreSQL
         query_embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
         
-        # 3. Buscar usando función search_relevant_chunks de la nueva tabla public.document_chunks
+        # 3. Buscar usando función ai.match_documents
         conn = get_db_connection()
         cursor = conn.cursor()
         
         try:
-            # Usar la nueva función search_relevant_chunks() que creamos para RAG
             cursor.execute(
                 """
-                SELECT 
-                    chunk_id,
-                    document_id,
-                    content,
-                    token_count,
-                    metadata,
-                    similarity
-                FROM search_relevant_chunks(
-                    %s::ai.vector(1536),
-                    %s::uuid,
+                SELECT id, document_id, chunk_index, content, metadata, similarity
+                FROM ai.match_documents(
+                    %s::ai.vector,
                     %s::double precision,
-                    %s::integer
+                    %s::integer,
+                    %s::uuid,
+                    %s::uuid[]
                 )
                 """,
                 (
                     query_embedding_str,
-                    business_id,
                     threshold,
-                    k
+                    k,
+                    business_id,
+                    document_ids
                 )
             )
             
             results = cursor.fetchall()
             
-            print(f"🔍 RAG Search: Found {len(results)} relevant chunks (threshold={threshold}, k={k})")
-            
             # Los resultados son RealDictCursor, usar nombres de columna
             return [
                 {
-                    "id": str(row["chunk_id"]),
+                    "id": str(row["id"]),
                     "document_id": str(row["document_id"]),
+                    "chunk_index": row["chunk_index"],
                     "content": row["content"],
-                    "token_count": row["token_count"],
                     "metadata": row["metadata"],
-                    "similarity": float(row["similarity"])
+                    "similarity": row["similarity"]
                 }
                 for row in results
             ]
         
         except Exception as e:
-            print(f"❌ Error in RAG search: {e}")
             raise e
         finally:
             cursor.close()

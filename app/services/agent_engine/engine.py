@@ -131,14 +131,11 @@ class AgentEngine:
             model = self.config.get('model', 'gpt-5-mini')
             cost = calculate_cost(tokens_used, model)
             
-            # Actualizar execution en DB con resultado + métricas RAG
+            # Actualizar execution en DB con resultado
             with get_db() as conn:
                 cursor = conn.cursor()
                 
                 try:
-                    # Extraer métricas RAG del resultado (si existen)
-                    rag_metrics = result.get('rag_metrics', {})
-                    
                     cursor.execute("""
                         UPDATE ai.agent_executions
                         SET status = 'completed',
@@ -150,14 +147,7 @@ class AgentEngine:
                                 'intent', %s,
                                 'sentiment', %s,
                                 'handoff', %s,
-                                'duration_ms', %s,
-                                'rag', jsonb_build_object(
-                                    'chunks_retrieved', %s,
-                                    'rag_tokens', %s,
-                                    'sources_count', %s,
-                                    'avg_similarity', %s,
-                                    'retrieval_time_ms', %s
-                                )
+                                'duration_ms', %s
                             )
                         WHERE id = %s
                     """, (
@@ -169,23 +159,11 @@ class AgentEngine:
                         result.get('sentiment'),
                         result.get('should_handoff', False),
                         duration_ms,
-                        # Métricas RAG
-                        rag_metrics.get('chunks_retrieved', 0),
-                        rag_metrics.get('total_tokens', 0),
-                        len(rag_metrics.get('sources', [])),
-                        round(rag_metrics.get('avg_similarity', 0), 3),
-                        rag_metrics.get('retrieval_time_ms', 0),
                         execution_id
                     ))
                     
                     conn.commit()
-                    
-                    # Log con métricas RAG si existieron
-                    if rag_metrics.get('chunks_retrieved', 0) > 0:
-                        print(f"✅ Execution completada: {execution_id} ({duration_ms}ms, {tokens_used} tokens, ${cost:.6f})")
-                        print(f"   RAG: {rag_metrics['chunks_retrieved']} chunks, {rag_metrics['total_tokens']} tokens, {len(rag_metrics.get('sources', []))} docs")
-                    else:
-                        print(f"✅ Execution completada: {execution_id} ({duration_ms}ms, {tokens_used} tokens, ${cost:.6f})")
+                    print(f"✅ Execution completada: {execution_id} ({duration_ms}ms, {tokens_used} tokens, ${cost:.6f})")
                     
                 except Exception as e:
                     print(f"Error actualizando execution: {e}")

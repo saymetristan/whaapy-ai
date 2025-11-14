@@ -127,6 +127,42 @@ class LLMFactory:
         return OpenAI(api_key=api_key)
     
     @staticmethod
+    async def call_gpt4o_mini(input_text: str, system_prompt: str = "") -> str:
+        """
+        Llamar a gpt-4o-mini para análisis rápido (intent classification, etc).
+        
+        Args:
+            input_text: Texto a analizar
+            system_prompt: System prompt opcional
+        
+        Returns:
+            str: Respuesta del modelo
+        """
+        client = LLMFactory.create_responses_client()
+        
+        # Combinar system prompt con input si existe
+        full_input = f"{system_prompt}\n\n{input_text}" if system_prompt else input_text
+        
+        try:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": input_text})
+            
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.2,
+                max_tokens=500
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            print(f"Error llamando a gpt-4o-mini: {e}")
+            raise
+    
+    @staticmethod
     async def call_gpt5_nano_minimal(input_text: str, system_prompt: str = "") -> str:
         """
         Llamar a gpt-5-nano con minimal reasoning para análisis rápido.
