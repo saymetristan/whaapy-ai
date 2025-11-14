@@ -30,28 +30,23 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         role = "User" if msg.type == 'human' else "Assistant"
         conversation_text += f"{role}: {msg.content}\n"
     
-    # Llamar a Responses API vía factory
+    # Llamar a Groq Chat Completions vía factory
     try:
-        client = LLMFactory.create_responses_client()
-        model = config.get('model', 'gpt-5-mini')
+        client = LLMFactory.create_groq_client()
+        model = config.get('model', 'openai/gpt-oss-120b')
         
-        # Responses API es SÍNCRONA, no usar await
-        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+        # Groq Chat Completions con reasoning medium
         llm_start = time.time()
-        if is_gpt5_model(model):
-            response = client.responses.create(
-                model=model,
-                input=conversation_text,
-                reasoning={ "effort": "medium" }  # Razonamiento moderado para respuestas
-            )
-        else:
-            # Fallback para modelos no-GPT5 (sin reasoning controls)
-            response = client.responses.create(
-                model=model,
-                input=conversation_text
-            )
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "user", "content": conversation_text}
+            ],
+            reasoning={"effort": "medium"},
+            temperature=0.2
+        )
         
-        response_content = response.output_text
+        response_content = response.choices[0].message.content
         
         llm_time = (time.time() - llm_start) * 1000
         respond_time = (time.time() - respond_start) * 1000

@@ -244,6 +244,7 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
                     "schema": ORCHESTRATOR_SCHEMA
                 }
             },
+            reasoning={"effort": "medium"},
             temperature=0.2  # Bajo para consistencia
         )
         
