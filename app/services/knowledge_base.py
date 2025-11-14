@@ -147,6 +147,8 @@ class KnowledgeBase:
         Returns: Lista de chunks relevantes con similarity scores
         """
         # 0. Quick check: si no hay documentos con embeddings, retornar vacío
+        print(f"🔍 [KB] Buscando en business_id={business_id}, query='{query[:50]}...'")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -157,8 +159,10 @@ class KnowledgeBase:
             )
             count = cursor.fetchone()[0]
             
+            print(f"📊 [KB] Found {count} chunks con embeddings para business {business_id}")
+            
             if count == 0:
-                print(f"⚠️ No hay documentos con embeddings para business {business_id}")
+                print(f"⚠️ [KB] Retornando vacío - no hay documentos")
                 return []
         finally:
             cursor.close()
@@ -222,6 +226,11 @@ class KnowledgeBase:
                 for row in results
                 if float(row[5]) >= threshold
             ]
+            
+            print(f"✅ [KB] Encontrados {len(filtered_results)}/{len(results)} chunks (threshold={threshold})")
+            if filtered_results:
+                top_similarity = max(r['similarity'] for r in filtered_results)
+                print(f"📈 [KB] Top similarity: {top_similarity:.3f}")
             
             return filtered_results
         
