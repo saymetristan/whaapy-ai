@@ -168,7 +168,7 @@ async def generate_summary(
     execution_id: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
-    Generar summary de conversación usando gpt-5-mini.
+    Generar summary de conversación usando gpt-oss-20b (Groq).
     
     Args:
         messages: Lista de mensajes a resumir (últimos 50 o todos)
@@ -188,52 +188,50 @@ async def generate_summary(
             for msg in messages_to_summarize
         ])
         
-        # 3. Crear LLM client
+        # 3. Crear Groq client
         llm_factory = LLMFactory()
-        openai_client = llm_factory.create_openai_client()
+        groq_client = llm_factory.create_groq_client()
         
-        # 4. Trackear llamada con LLMCallTracker
+        # 4. Construir input completo para Responses API
+        full_input = f"{SUMMARIZATION_SYSTEM_PROMPT}\n\nCONVERSACIÓN:\n\n{conversation_text}"
+        
+        # 5. Trackear llamada con LLMCallTracker
         async with LLMCallTracker(
             business_id=business_id,
             operation_type="summarization",
-            provider="openai",
-            model="gpt-5-mini",
+            provider="groq",
+            model="openai/gpt-oss-20b",
             execution_id=execution_id,
             operation_context={"message_count": len(messages_to_summarize)},
-            reasoning_effort="low"
+            reasoning_effort="medium"
         ) as tracker:
             
-            # 5. Llamar a gpt-5-mini con structured output
-            response = openai_client.responses.create(
-                model="gpt-5-mini",
+            # 6. Llamar a gpt-oss-20b con structured output (Groq Responses API)
+            response = groq_client.responses.create(
+                model="openai/gpt-oss-20b",
+                input=full_input,
                 reasoning={
-                    "effort": "low"  # Balance costo/calidad
+                    "effort": "medium"  # Balance óptimo para summarization
                 },
                 text={
-                    "verbosity": "low",
                     "format": {
                         "type": "json_schema",
-                        "json_schema": {
-                            "name": "conversation_summary",
-                            "strict": True,
-                            "schema": SUMMARY_SCHEMA
-                        }
+                        "name": "conversation_summary",
+                        "strict": True,
+                        "schema": SUMMARY_SCHEMA
                     }
                 },
-                messages=[
-                    {"role": "system", "content": SUMMARIZATION_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"CONVERSACIÓN:\n\n{conversation_text}"}
-                ]
+                temperature=0.2
             )
             
-            # 6. Registrar tokens
+            # 7. Registrar tokens
             tracker.record(
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens
             )
             
-            # 7. Parsear respuesta
-            summary_json = json.loads(response.choices[0].message.content)
+            # 8. Parsear respuesta (Groq Responses API usa output_text)
+            summary_json = json.loads(response.output_text)
             
             print(f"✅ Summary generado: {len(summary_json['text'])} chars, {len(summary_json['topics'])} topics")
             print(f"   Topics: {', '.join(summary_json['topics'][:3])}...")

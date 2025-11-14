@@ -87,7 +87,7 @@ async def validate_response_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Validar calidad de la respuesta generada.
     
     Solo se ejecuta si confidence < 0.75 (optimización tokens).
-    Usa gpt-5-mini con reasoning low para velocidad y costo.
+    Usa gpt-oss-20b (Groq) con reasoning medium para velocidad y precisión.
     """
     import time
     validation_start = time.time()
@@ -121,8 +121,9 @@ async def validate_response_node(state: Dict[str, Any]) -> Dict[str, Any]:
     else:
         context_info = "Sin contexto de knowledge base"
     
-    # Construir input para validation
-    validation_input = f"""
+    # Construir input completo para Responses API
+    full_input = f"""{VALIDATION_SYSTEM_PROMPT}
+
 PREGUNTA DEL CLIENTE:
 {user_query}
 
@@ -136,44 +137,39 @@ Evalúa la calidad de la respuesta según los criterios definidos.
 """
     
     try:
-        # Crear OpenAI client (gpt-5-mini)
+        # Crear Groq client (gpt-oss-20b)
         llm_factory = LLMFactory()
-        openai_client = llm_factory.create_openai_client()
+        groq_client = llm_factory.create_groq_client()
         
         # Track LLM call
         async with LLMCallTracker(
             business_id=state['business_id'],
             operation_type='validation',
-            provider='openai',
-            model='gpt-5-mini',
+            provider='groq',
+            model='openai/gpt-oss-20b',
             execution_id=state['execution_id'],
             operation_context={
                 'node': 'validate_response',
                 'conversation_id': state.get('conversation_id'),
                 'confidence': state.get('confidence')
             },
-            reasoning_effort='low'
+            reasoning_effort='medium'
         ) as tracker:
             
             llm_start = time.time()
-            response = openai_client.responses.create(
-                model="gpt-5-mini",
-                reasoning={"effort": "low"},  # Balance costo/calidad
+            response = groq_client.responses.create(
+                model="openai/gpt-oss-20b",
+                input=full_input,
+                reasoning={"effort": "medium"},  # Balance óptimo para evaluación
                 text={
-                    "verbosity": "low",
                     "format": {
                         "type": "json_schema",
-                        "json_schema": {
-                            "name": "validation_result",
-                            "strict": True,
-                            "schema": VALIDATION_SCHEMA
-                        }
+                        "name": "validation_result",
+                        "strict": True,
+                        "schema": VALIDATION_SCHEMA
                     }
                 },
-                messages=[
-                    {"role": "system", "content": VALIDATION_SYSTEM_PROMPT},
-                    {"role": "user", "content": validation_input}
-                ]
+                temperature=0.2
             )
             
             # Record tokens
@@ -182,8 +178,8 @@ Evalúa la calidad de la respuesta según los criterios definidos.
                 output_tokens=response.usage.output_tokens
             )
             
-            # Parse result
-            validation_result = json.loads(response.choices[0].message.content)
+            # Parse result (Groq Responses API usa output_text)
+            validation_result = json.loads(response.output_text)
         
         llm_time = (time.time() - llm_start) * 1000
         validation_time = (time.time() - validation_start) * 1000
