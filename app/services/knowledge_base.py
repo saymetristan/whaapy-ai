@@ -79,7 +79,7 @@ class KnowledgeBase:
                         'total_chunks': len(chunks)
                     }
                 ) as tracker:
-                    embedding = await self.embeddings.aembed_query(chunk)
+                embedding = await self.embeddings.aembed_query(chunk)
                     
                     # Estimar tokens
                     estimated_tokens = estimate_embedding_tokens(chunk)
@@ -199,7 +199,7 @@ class KnowledgeBase:
             model=EMBEDDINGS_MODEL,
             operation_context={'operation': 'search_query', 'query_length': len(query)}
         ) as tracker:
-            query_embedding = await self.embeddings.aembed_query(query)
+        query_embedding = await self.embeddings.aembed_query(query)
             
             # Embeddings: estimar tokens (1 token ≈ 4 chars)
             estimated_tokens = estimate_embedding_tokens(query)
@@ -297,8 +297,8 @@ class KnowledgeBase:
         business_id: str,
         query: str,
         k: int = 5,
-        semantic_weight: float = 0.7,
-        keyword_weight: float = 0.3,
+        semantic_weight: float = 0.6,
+        keyword_weight: float = 0.4,
         threshold: float = 0.3
     ) -> List[Dict[str, Any]]:
         """

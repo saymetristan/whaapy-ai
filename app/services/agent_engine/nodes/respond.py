@@ -31,12 +31,13 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         role = "User" if msg.type == 'human' else "Assistant"
         conversation_text += f"{role}: {msg.content}\n"
     
-    # Guardrail anti-hallucination: Si NO hay contexto KB, instruir explícitamente
+    # Guardrail anti-hallucination: Solo si orchestrator INTENTÓ buscar KB
     retrieved_docs = state.get('retrieved_docs', [])
     has_context = retrieved_docs and len(retrieved_docs) > 0
+    attempted_kb_search = state.get('needs_knowledge_base', False)
     
-    if not has_context:
-        # SIN contexto KB → instruir explícitamente que NO alucine
+    if not has_context and attempted_kb_search:
+        # SIN contexto KB Y orchestrator quería buscar → instruir explícitamente que NO alucine
         system_instruction = """
 
 CRITICAL INSTRUCTION: 
@@ -48,9 +49,12 @@ DO NOT make up or invent any information. DO NOT provide generic answers.
 If you don't have the information in the knowledge base, you MUST say so and offer human assistance."""
         
         conversation_text = f"{system_instruction}\n\n{conversation_text}"
-        print("⚠️ [RESPOND] NO KB context → usando guardrail anti-hallucination")
+        print("⚠️ [RESPOND] NO KB context + orchestrator buscó → guardrail anti-hallucination")
     else:
-        print(f"✅ [RESPOND] KB context presente: {len(retrieved_docs)} docs")
+        if has_context:
+            print(f"✅ [RESPOND] KB context presente: {len(retrieved_docs)} docs")
+        else:
+            print(f"✅ [RESPOND] NO KB search needed (fast-path o no KB request)")
     
     # Llamar a Groq Responses API vía factory + tracking
     try:

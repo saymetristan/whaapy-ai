@@ -44,13 +44,29 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
             business_id=state['business_id'],
             query=last_user_message.content,
             k=3,
-            semantic_weight=0.7,
-            keyword_weight=0.3,
+            semantic_weight=0.6,
+            keyword_weight=0.4,
             threshold=threshold
         )
         
         # Extraer contenido de los documentos relevantes
         retrieved_docs = [doc['content'] for doc in results]
+        
+        # Fallback: Si 0 docs Y orchestrator quería KB, re-intentar con threshold muy bajo
+        if len(retrieved_docs) == 0 and threshold > 0.2:
+            print(f"🔄 [KB] Fallback: 0 docs con threshold {threshold}, re-intentando con 0.2")
+            
+            fallback_results = await kb.hybrid_search(
+                business_id=state['business_id'],
+                query=last_user_message.content,
+                k=3,
+                semantic_weight=0.6,
+                keyword_weight=0.4,
+                threshold=0.2  # Muy permisivo
+            )
+            
+            retrieved_docs = [doc['content'] for doc in fallback_results]
+            print(f"📚 Fallback retrieved {len(retrieved_docs)} docs from KB (hybrid)")
         
         print(f"📚 Retrieved {len(retrieved_docs)} docs from KB (hybrid)")
         
@@ -66,8 +82,8 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
                     'query': last_user_message.content, 
                     'k': 3, 
                     'threshold': threshold,
-                    'semantic_weight': 0.7,
-                    'keyword_weight': 0.3
+                    'semantic_weight': 0.6,
+                    'keyword_weight': 0.4
                 },
                 response_data={'results_count': len(retrieved_docs)}
             )
