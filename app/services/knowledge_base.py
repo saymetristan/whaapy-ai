@@ -146,6 +146,24 @@ class KnowledgeBase:
         
         Returns: Lista de chunks relevantes con similarity scores
         """
+        # 0. Quick check: si no hay documentos con embeddings, retornar vacío
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute(
+                "SELECT COUNT(*) FROM ai.documents_embeddings WHERE business_id = %s AND embedding IS NOT NULL",
+                (business_id,)
+            )
+            count = cursor.fetchone()[0]
+            
+            if count == 0:
+                print(f"⚠️ No hay documentos con embeddings para business {business_id}")
+                return []
+        finally:
+            cursor.close()
+            conn.close()
+        
         # 1. Generar embedding de la query
         query_embedding = await self.embeddings.aembed_query(query)
         
