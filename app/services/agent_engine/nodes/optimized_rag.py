@@ -379,14 +379,14 @@ async def optimized_rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
         chunks_found = len(chunks)
         print(f"📚 [Optimized RAG] Encontrados {chunks_found} chunks (multi-query)")
         
-        # 3. Reranking si hay suficientes chunks
-        if chunks_found >= 5:
+        # 3. Reranking si hay chunks (mínimo 2 para comparación)
+        if chunks_found >= 2:
             rerank_start = datetime.now()
             chunks = await rerank_results(
                 original_query=original_query,
                 chunks=chunks,
                 business_id=business_id,
-                top_n=5
+                top_n=min(5, chunks_found)  # No pedir más del disponible
             )
             reranking_duration_ms = int((datetime.now() - rerank_start).total_seconds() * 1000)
             reranking_applied = True
