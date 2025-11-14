@@ -143,11 +143,18 @@ class AgentEngine:
                             nodes_visited = %s,
                             tokens_used = %s,
                             cost = %s,
+                            confidence = %s,
+                            routing_decision = %s,
+                            orchestrator_reasoning = %s,
                             metadata = jsonb_build_object(
                                 'intent', %s,
                                 'sentiment', %s,
                                 'handoff', %s,
-                                'duration_ms', %s
+                                'duration_ms', %s,
+                                'kb_search_strategy', %s,
+                                'response_strategy', %s,
+                                'complexity', %s,
+                                'customer_sentiment', %s
                             )
                         WHERE id = %s
                     """, (
@@ -155,10 +162,17 @@ class AgentEngine:
                         result.get('nodes_visited', []),
                         tokens_used,
                         cost,
+                        result.get('confidence'),
+                        result.get('routing_decision'),
+                        result.get('orchestrator_reasoning'),
                         result.get('intent'),
                         result.get('sentiment'),
                         result.get('should_handoff', False),
                         duration_ms,
+                        result.get('kb_search_strategy'),
+                        result.get('response_strategy'),
+                        result.get('complexity'),
+                        result.get('customer_sentiment'),
                         execution_id
                     ))
                     
