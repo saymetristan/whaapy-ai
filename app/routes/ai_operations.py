@@ -119,19 +119,19 @@ Responde en JSON con este formato exacto:
             reasoning_effort='low'
         ) as tracker:
             # Responses API es SÍNCRONA, no usar await
-        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
-        if is_gpt5_model(model):
-            response = client.responses.create(
-                model=model,
-                input=analysis_input,
-                reasoning={ "effort": "low" },
-                text={ "verbosity": "low" }
-            )
-        else:
-            # Fallback para modelos no-GPT5 (sin reasoning controls)
-            response = client.responses.create(
-                model=model,
-                input=analysis_input
+            # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+            if is_gpt5_model(model):
+                response = client.responses.create(
+                    model=model,
+                    input=analysis_input,
+                    reasoning={ "effort": "low" },
+                    text={ "verbosity": "low" }
+                )
+            else:
+                # Fallback para modelos no-GPT5 (sin reasoning controls)
+                response = client.responses.create(
+                    model=model,
+                    input=analysis_input
                 )
             
             # Record tokens
