@@ -13,9 +13,7 @@ ORCHESTRATOR_SCHEMA = {
             "enum": ["greeting", "question", "complaint", "request_human", "other"]
         },
         "confidence": {
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0
+            "type": "number"
         },
         "needs_knowledge_base": {"type": "boolean"},
         "kb_search_strategy": {
@@ -24,9 +22,7 @@ ORCHESTRATOR_SCHEMA = {
         },
         "search_queries": {
             "type": "array",
-            "items": {"type": "string"},
-            "minItems": 0,
-            "maxItems": 3
+            "items": {"type": "string"}
         },
         "complexity": {
             "type": "string",
