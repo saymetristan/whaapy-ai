@@ -34,8 +34,8 @@ def route_after_orchestrator(state: Dict[str, Any]) -> str:
     Prioridades:
     1. Handoff forzado (confidence < 0.4 o should_handoff)
     2. Handoff sugerido (0.4 <= confidence < 0.6) - set flag, continuar
-    3. Primer mensaje → greet
-    4. Necesita KB → retrieve_knowledge
+    3. Necesita KB → retrieve_knowledge (ANTES de greet para primer mensaje)
+    4. Primer mensaje sin KB → greet
     5. Default → respuesta directa
     """
     confidence = state.get('confidence', 0.5)
@@ -54,15 +54,15 @@ def route_after_orchestrator(state: Dict[str, Any]) -> str:
         state['suggest_handoff_in_response'] = True
         # Continúa a respond pero con flag para agregar disclaimer
     
-    # Prioridad 3: Primer mensaje
-    if is_first_message:
-        print(f"🔀 [ROUTER] greet (first message)")
-        return 'greet'
-    
-    # Prioridad 4: Necesita KB
+    # Prioridad 3: Necesita KB (incluso en primer mensaje)
     if needs_kb:
-        print(f"🔀 [ROUTER] retrieve_knowledge (confidence={confidence:.2f})")
+        print(f"🔀 [ROUTER] retrieve_knowledge (confidence={confidence:.2f}, first_msg={is_first_message})")
         return 'retrieve_knowledge'
+    
+    # Prioridad 4: Primer mensaje sin necesidad de KB → greet simple
+    if is_first_message:
+        print(f"🔀 [ROUTER] greet (first message, no KB needed)")
+        return 'greet'
     
     # Default: respuesta directa
     print(f"🔀 [ROUTER] direct_respond (confidence={confidence:.2f})")
