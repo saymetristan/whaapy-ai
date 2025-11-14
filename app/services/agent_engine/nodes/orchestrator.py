@@ -188,6 +188,9 @@ async def orchestrator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     
     Usa gpt-5-nano (NO mini) con reasoning: extended para optimizar costos 5x.
     """
+    import time
+    orchestrator_start = time.time()
+    
     # Extraer mensajes
     messages = state['messages']
     human_messages = [m for m in messages if m.type == 'human']
@@ -231,6 +234,7 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
     try:
         client = LLMFactory.create_responses_client()
         
+        llm_start = time.time()
         response = client.responses.create(
             model="gpt-5-nano",
             input=prompt,
@@ -246,10 +250,12 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
             }
         )
         
+        llm_time = (time.time() - llm_start) * 1000
         decision = json.loads(response.output_text)
         
         print(f"🧠 [ORCHESTRATOR] Decision: confidence={decision['confidence']:.2f}, strategy={decision['kb_search_strategy']}, handoff={decision['should_handoff']}")
         print(f"   Reasoning: {decision['reasoning'][:100]}...")
+        print(f"⏱️ [ORCHESTRATOR] LLM call: {llm_time:.0f}ms")
         
         # Determinar routing_decision basado en el análisis
         if decision['should_handoff']:

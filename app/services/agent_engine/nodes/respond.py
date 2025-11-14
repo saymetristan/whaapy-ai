@@ -8,6 +8,9 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
     Nodo de generación de respuesta usando Responses API.
     Migrado de Chat Completions a Responses API para mejor performance y caching.
     """
+    import time
+    respond_start = time.time()
+    
     # Construir system prompt con contexto de KB
     system_prompt = config.get('system_prompt', 'Eres un asistente virtual de atención al cliente.')
     
@@ -34,6 +37,7 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         
         # Responses API es SÍNCRONA, no usar await
         # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+        llm_start = time.time()
         if is_gpt5_model(model):
             response = client.responses.create(
                 model=model,
