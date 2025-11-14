@@ -196,11 +196,11 @@ class KnowledgeBase:
                     chunk_index,
                     content,
                     metadata,
-                    1 - (embedding <=> %s::ai.vector) as similarity
+                    1 - (embedding <=> %s::vector) as similarity
                 FROM ai.documents_embeddings
                 WHERE business_id = %s
                 {doc_filter}
-                ORDER BY embedding <=> %s::ai.vector
+                ORDER BY embedding <=> %s::vector
                 LIMIT %s
             """
             
@@ -215,17 +215,18 @@ class KnowledgeBase:
             results = cursor.fetchall()
             
             # Filtrar por threshold
+            # RealDictCursor retorna dict, no tuplas
             filtered_results = [
                 {
-                    "id": str(row[0]),
-                    "document_id": str(row[1]),
-                    "chunk_index": row[2],
-                    "content": row[3],
-                    "metadata": row[4],
-                    "similarity": float(row[5])
+                    "id": str(row['id']),
+                    "document_id": str(row['document_id']),
+                    "chunk_index": row['chunk_index'],
+                    "content": row['content'],
+                    "metadata": row['metadata'],
+                    "similarity": float(row['similarity'])
                 }
                 for row in results
-                if float(row[5]) >= threshold
+                if float(row['similarity']) >= threshold
             ]
             
             print(f"✅ [KB] Encontrados {len(filtered_results)}/{len(results)} chunks (threshold={threshold})")
