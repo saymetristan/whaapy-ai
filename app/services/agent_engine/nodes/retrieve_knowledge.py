@@ -26,14 +26,16 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
     kb = KnowledgeBase()
     
     # Threshold adaptativo según confidence del orchestrator
+    # LÓGICA: Alta confianza → orchestrator muy seguro → threshold BAJO (permisivo)
+    #         Baja confianza → orchestrator inseguro → threshold ALTO (estricto, evitar ruido)
     confidence = state.get('confidence', 0.5)
     
     if confidence > 0.85:
-        threshold = 0.4  # Alta confianza → más estricto
+        threshold = 0.3  # Alta confianza → permisivo (orchestrator sabe lo que busca)
     elif confidence > 0.7:
         threshold = 0.35  # Media confianza → balanceado
     else:
-        threshold = 0.3  # Baja confianza → permisivo
+        threshold = 0.4  # Baja confianza → estricto (evitar ruido)
     
     print(f"🎯 [KB] Adaptive threshold: {threshold} (confidence={confidence:.2f})")
     
