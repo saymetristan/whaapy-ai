@@ -1,5 +1,6 @@
 from typing import Dict, Any
 from app.services.agent_engine.llm_factory import LLMFactory, is_gpt5_model
+from app.services.llm_tracker import LLMCallTracker
 from langchain_core.messages import AIMessage
 
 
@@ -30,21 +31,41 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         role = "User" if msg.type == 'human' else "Assistant"
         conversation_text += f"{role}: {msg.content}\n"
     
-    # Llamar a Groq Responses API vía factory
+    # Llamar a Groq Responses API vía factory + tracking
     try:
         client = LLMFactory.create_groq_client()
         model = config.get('model', 'openai/gpt-oss-120b')
         
-        # Groq Responses API con reasoning medium
-        llm_start = time.time()
-        response = client.responses.create(
+        # Track LLM call
+        async with LLMCallTracker(
+            business_id=state['business_id'],
+            operation_type='chat',
+            provider='groq',
             model=model,
-            input=conversation_text,
-            reasoning={"effort": "medium"},
-            temperature=0.2
-        )
-        
-        response_content = response.output_text
+            execution_id=state['execution_id'],
+            operation_context={
+                'node': 'respond',
+                'conversation_id': state.get('conversation_id'),
+                'has_kb_context': bool(state.get('retrieved_docs'))
+            },
+            reasoning_effort='medium'
+        ) as tracker:
+            # Groq Responses API con reasoning medium
+            llm_start = time.time()
+            response = client.responses.create(
+                model=model,
+                input=conversation_text,
+                reasoning={"effort": "medium"},
+                temperature=0.2
+            )
+            
+            # Record tokens
+            tracker.record(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens
+            )
+            
+            response_content = response.output_text
         
         llm_time = (time.time() - llm_start) * 1000
         respond_time = (time.time() - respond_start) * 1000

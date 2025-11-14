@@ -30,7 +30,7 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
             business_id=state['business_id'],
             query=last_user_message.content,
             k=3,
-            threshold=0.5  # Bajado de 0.7 a 0.5 para capturar más resultados relevantes
+            threshold=0.4  # Bajado a 0.4 para capturar nombres propios y queries marginales
         )
         
         # Extraer contenido de los documentos relevantes
@@ -46,7 +46,7 @@ async def retrieve_knowledge_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 tool_name='knowledge_base_search',
                 duration_ms=duration_ms,
                 success=True,
-                request_data={'query': last_user_message.content, 'k': 3, 'threshold': 0.5},
+                request_data={'query': last_user_message.content, 'k': 3, 'threshold': 0.4},
                 response_data={'results_count': len(retrieved_docs)}
             )
         

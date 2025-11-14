@@ -1,6 +1,7 @@
 import json
 from typing import Dict, Any, List, Optional
 from app.services.agent_engine.llm_factory import LLMFactory
+from app.services.llm_tracker import LLMCallTracker
 from langchain_core.messages import BaseMessage
 
 
@@ -226,25 +227,45 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
         conversation_summary=summary_text
     )
     
-    # Llamar a Groq gpt-oss-120b con structured output
+    # Llamar a Groq gpt-oss-120b con structured output + tracking
     try:
         client = LLMFactory.create_groq_client()
         
-        llm_start = time.time()
-        response = client.responses.create(
-            model="openai/gpt-oss-120b",
-            input=prompt,
-            reasoning={"effort": "medium"},
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "orchestrator_decision",
-                    "strict": True,
-                    "schema": ORCHESTRATOR_SCHEMA
-                }
+        # Track LLM call
+        async with LLMCallTracker(
+            business_id=state['business_id'],
+            operation_type='chat',
+            provider='groq',
+            model='openai/gpt-oss-120b',
+            execution_id=state['execution_id'],
+            operation_context={
+                'node': 'orchestrator',
+                'conversation_id': state.get('conversation_id'),
+                'is_first_message': is_first_message
             },
-            temperature=0.2  # Bajo para consistencia
-        )
+            reasoning_effort='medium'
+        ) as tracker:
+            llm_start = time.time()
+            response = client.responses.create(
+                model="openai/gpt-oss-120b",
+                input=prompt,
+                reasoning={"effort": "medium"},
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "name": "orchestrator_decision",
+                        "strict": True,
+                        "schema": ORCHESTRATOR_SCHEMA
+                    }
+                },
+                temperature=0.2  # Bajo para consistencia
+            )
+            
+            # Record tokens
+            tracker.record(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens
+            )
         
         llm_time = (time.time() - llm_start) * 1000
         decision = json.loads(response.output_text)

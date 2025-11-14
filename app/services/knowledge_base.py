@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.db.database import get_db_connection, return_db_connection
+from app.services.llm_tracker import LLMCallTracker, estimate_embedding_tokens
 
 # Configuración de embeddings (text-embedding-3-small para compatibilidad)
 EMBEDDINGS_MODEL = "text-embedding-3-small"
@@ -65,8 +66,24 @@ class KnowledgeBase:
         
         try:
             for idx, chunk in enumerate(chunks):
-                # Generar embedding
-                embedding = await self.embeddings.aembed_query(chunk)
+                # Generar embedding + tracking
+                async with LLMCallTracker(
+                    business_id=business_id,
+                    operation_type='embedding',
+                    provider='openai',
+                    model=EMBEDDINGS_MODEL,
+                    operation_context={
+                        'operation': 'add_document',
+                        'document_id': document_id,
+                        'chunk_index': idx,
+                        'total_chunks': len(chunks)
+                    }
+                ) as tracker:
+                    embedding = await self.embeddings.aembed_query(chunk)
+                    
+                    # Estimar tokens
+                    estimated_tokens = estimate_embedding_tokens(chunk)
+                    tracker.record(input_tokens=estimated_tokens, output_tokens=0)
                 
                 # Metadata específico del chunk
                 chunk_metadata = {
@@ -172,9 +189,22 @@ class KnowledgeBase:
             cursor.close()
             return_db_connection(conn)
         
-        # 1. Generar embedding de la query
+        # 1. Generar embedding de la query + tracking
         embed_start = time.time()
-        query_embedding = await self.embeddings.aembed_query(query)
+        
+        async with LLMCallTracker(
+            business_id=business_id,
+            operation_type='embedding',
+            provider='openai',
+            model=EMBEDDINGS_MODEL,
+            operation_context={'operation': 'search_query', 'query_length': len(query)}
+        ) as tracker:
+            query_embedding = await self.embeddings.aembed_query(query)
+            
+            # Embeddings: estimar tokens (1 token ≈ 4 chars)
+            estimated_tokens = estimate_embedding_tokens(query)
+            tracker.record(input_tokens=estimated_tokens, output_tokens=0)
+        
         embed_time = (time.time() - embed_start) * 1000
         print(f"⏱️ [KB] Embedding generado en {embed_time:.0f}ms")
         

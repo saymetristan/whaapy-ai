@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from app.middleware.auth import verify_token
 from app.services.agent_engine.llm_factory import LLMFactory
+from app.services.llm_tracker import LLMCallTracker, estimate_embedding_tokens
 import json
 import re
 import os
@@ -103,22 +104,40 @@ Responde en JSON con este formato exacto:
 }}"""
     
     try:
-        # Responses API es SÍNCRONA, no usar await
         model = "gpt-5-mini"
         
-        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
-        if is_gpt5_model(model):
-            response = client.responses.create(
-                model=model,
-                input=analysis_input,
-                reasoning={ "effort": "low" },
-                text={ "verbosity": "low" }
-            )
-        else:
-            # Fallback para modelos no-GPT5 (sin reasoning controls)
-            response = client.responses.create(
-                model=model,
-                input=analysis_input
+        # Track LLM call
+        # Nota: business_id no disponible en request, usar hash del business_name como workaround
+        business_id_placeholder = f"unknown_{hash(request.business_name) % 1000000}"
+        
+        async with LLMCallTracker(
+            business_id=business_id_placeholder,
+            operation_type='analyze_prompt',
+            provider='openai',
+            model=model,
+            operation_context={'business_name': request.business_name, 'prompt_length': len(request.prompt)},
+            reasoning_effort='low'
+        ) as tracker:
+            # Responses API es SÍNCRONA, no usar await
+            # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+            if is_gpt5_model(model):
+                response = client.responses.create(
+                    model=model,
+                    input=analysis_input,
+                    reasoning={ "effort": "low" },
+                    text={ "verbosity": "low" }
+                )
+            else:
+                # Fallback para modelos no-GPT5 (sin reasoning controls)
+                response = client.responses.create(
+                    model=model,
+                    input=analysis_input
+                )
+            
+            # Record tokens
+            tracker.record(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens
             )
         
         analysis = json.loads(response.output_text)
@@ -157,20 +176,38 @@ async def generate_suggestion(
         conversation_text += f"{role}: {content}\n"
     
     try:
-        # Responses API es SÍNCRONA, no usar await
-        # Solo usar reasoning/text si el modelo soporta GPT-5 controls
-        if is_gpt5_model(request.model):
-            response = client.responses.create(
-                model=request.model,
-                input=conversation_text,
-                reasoning={ "effort": "medium" },
-                text={ "verbosity": "low" }
-            )
-        else:
-            # Fallback para modelos no-GPT5 (sin reasoning controls)
-            response = client.responses.create(
-                model=request.model,
-                input=conversation_text
+        # Track LLM call
+        # Nota: business_id no disponible en request, usar placeholder
+        business_id_placeholder = f"unknown_{hash(request.system_prompt) % 1000000}"
+        
+        async with LLMCallTracker(
+            business_id=business_id_placeholder,
+            operation_type='generate_suggestion',
+            provider='openai',
+            model=request.model,
+            operation_context={'messages_count': len(request.conversation_history)},
+            reasoning_effort='medium' if is_gpt5_model(request.model) else None
+        ) as tracker:
+            # Responses API es SÍNCRONA, no usar await
+            # Solo usar reasoning/text si el modelo soporta GPT-5 controls
+            if is_gpt5_model(request.model):
+                response = client.responses.create(
+                    model=request.model,
+                    input=conversation_text,
+                    reasoning={ "effort": "medium" },
+                    text={ "verbosity": "low" }
+                )
+            else:
+                # Fallback para modelos no-GPT5 (sin reasoning controls)
+                response = client.responses.create(
+                    model=request.model,
+                    input=conversation_text
+                )
+            
+            # Record tokens
+            tracker.record(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens
             )
         
         suggestion = response.output_text
@@ -211,28 +248,44 @@ async def extract_document(
         try:
             print(f"📄 Procesando página {idx + 1}...")
             
-            # Chat Completions con visión (gpt-5-mini soporta visión)
-            response = client.chat.completions.create(
-                model="gpt-5-mini",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": "Extract all text from this document image. Return only the text content, no explanations. If no text, return 'NO_TEXT_FOUND'."
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{base64_image}"
+            # Track LLM call (OCR con visión)
+            business_id_placeholder = f"unknown_ocr_{hash(str(idx)) % 1000000}"
+            
+            async with LLMCallTracker(
+                business_id=business_id_placeholder,
+                operation_type='ocr',
+                provider='openai',
+                model='gpt-5-mini',
+                operation_context={'page_number': idx + 1, 'total_pages': len(request.page_images)}
+            ) as tracker:
+                # Chat Completions con visión (gpt-5-mini soporta visión)
+                response = client.chat.completions.create(
+                    model="gpt-5-mini",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Extract all text from this document image. Return only the text content, no explanations. If no text, return 'NO_TEXT_FOUND'."
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{base64_image}"
+                                    }
                                 }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=4096
-            )
+                            ]
+                        }
+                    ],
+                    max_tokens=4096
+                )
+                
+                # Record tokens
+                tracker.record(
+                    input_tokens=response.usage.prompt_tokens,
+                    output_tokens=response.usage.completion_tokens
+                )
             
             page_text = response.choices[0].message.content.strip()
             
