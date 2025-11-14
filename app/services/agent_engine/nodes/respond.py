@@ -54,7 +54,10 @@ async def respond_node(state: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
         
         response_content = response.output_text
         
+        llm_time = (time.time() - llm_start) * 1000
+        respond_time = (time.time() - respond_start) * 1000
         print(f"🤖 Respuesta generada: {response_content[:100]}...")
+        print(f"⏱️ [RESPOND] LLM call: {llm_time:.0f}ms, Total: {respond_time:.0f}ms")
         
     except Exception as e:
         print(f"Error generando respuesta: {e}")

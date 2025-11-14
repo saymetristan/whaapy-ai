@@ -270,6 +270,9 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
             routing_decision = 'direct_respond'
         
         # Actualizar state con decisión
+        orchestrator_time = (time.time() - orchestrator_start) * 1000
+        print(f"⏱️ [ORCHESTRATOR] Total: {orchestrator_time:.0f}ms")
+        
         return {
             **decision,  # Spread all orchestrator fields
             'orchestrator_reasoning': decision['reasoning'],
