@@ -238,11 +238,9 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
                 "verbosity": "low",  # Respuestas concisas para ahorrar tokens
                 "format": {
                     "type": "json_schema",
-                    "json_schema": {
-                        "name": "orchestrator_decision",
-                        "strict": True,
-                        "schema": ORCHESTRATOR_SCHEMA
-                    }
+                    "name": "orchestrator_decision",  # name va aquí, no dentro de json_schema
+                    "strict": True,
+                    "schema": ORCHESTRATOR_SCHEMA  # schema directo, sin wrapper
                 }
             }
         )
