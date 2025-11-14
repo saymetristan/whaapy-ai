@@ -234,14 +234,14 @@ Hechos clave: {', '.join(conversation_summary.get('key_facts', [])[:3])}
         response = client.responses.create(
             model="gpt-5-nano",
             input=prompt,
-            reasoning={"effort": "extended"},  # Extended reasoning para análisis profundo
+            reasoning={"effort": "high"},  # high es el máximo (extended no existe)
             text={
                 "verbosity": "low",  # Respuestas concisas para ahorrar tokens
                 "format": {
                     "type": "json_schema",
-                    "name": "orchestrator_decision",  # name va aquí, no dentro de json_schema
+                    "name": "orchestrator_decision",
                     "strict": True,
-                    "schema": ORCHESTRATOR_SCHEMA  # schema directo, sin wrapper
+                    "schema": ORCHESTRATOR_SCHEMA
                 }
             }
         )
