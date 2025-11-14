@@ -5,7 +5,7 @@ from app.services.agent_engine.nodes.greet import greet_node
 from app.services.agent_engine.nodes.smart_router import smart_router_node
 from app.services.agent_engine.nodes.orchestrator import orchestrator_node
 from app.services.agent_engine.nodes.retrieve_knowledge import retrieve_knowledge_node
-from app.services.agent_engine.nodes.call_tools import call_tools_node
+# call_tools_node será usado en Sprint 2+ cuando se implementen herramientas dinámicas
 from app.services.agent_engine.nodes.respond import respond_node
 from app.services.agent_engine.nodes.handoff import handoff_node
 
@@ -92,7 +92,7 @@ def create_agent_graph():
     workflow.add_node("orchestrator", orchestrator_node)
     workflow.add_node("greet", greet_node)
     workflow.add_node("retrieve_knowledge", retrieve_knowledge_node)
-    workflow.add_node("call_tools", call_tools_node)
+    # call_tools no se agrega porque no se usa en Sprint 1 (será para Sprint 2+)
     workflow.add_node("respond", respond_node)
     workflow.add_node("handoff", handoff_node)
     
@@ -126,9 +126,6 @@ def create_agent_graph():
     
     # ✅ Retrieve knowledge va a respond
     workflow.add_edge("retrieve_knowledge", "respond")
-    
-    # ✅ Call tools va a respond (para Sprint 2+)
-    workflow.add_edge("call_tools", "respond")
     
     # ✅ Respond y handoff terminan
     workflow.add_edge("respond", END)
