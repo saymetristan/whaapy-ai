@@ -3,7 +3,7 @@ import json
 from typing import List, Dict, Any, Optional
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from app.db.database import get_db_connection
+from app.db.database import get_db_connection, return_db_connection
 
 # Configuración de embeddings (text-embedding-3-small para compatibilidad)
 EMBEDDINGS_MODEL = "text-embedding-3-small"
@@ -113,7 +113,7 @@ class KnowledgeBase:
             raise e
         finally:
             cursor.close()
-            conn.close()
+            return_db_connection(conn)
     
     async def delete_document(self, document_id: str) -> None:
         """Eliminar todos los embeddings de un documento"""
@@ -131,7 +131,7 @@ class KnowledgeBase:
         
         finally:
             cursor.close()
-            conn.close()
+            return_db_connection(conn)
     
     async def search(
         self,
@@ -162,7 +162,7 @@ class KnowledgeBase:
                 return []
         finally:
             cursor.close()
-            conn.close()
+            return_db_connection(conn)
         
         # 1. Generar embedding de la query
         query_embedding = await self.embeddings.aembed_query(query)
@@ -229,7 +229,7 @@ class KnowledgeBase:
             raise e
         finally:
             cursor.close()
-            conn.close()
+            return_db_connection(conn)
     
     async def get_stats(self, business_id: str) -> Dict[str, Any]:
         """Obtener estadísticas de embeddings del negocio"""
@@ -269,5 +269,5 @@ class KnowledgeBase:
         
         finally:
             cursor.close()
-            conn.close()
+            return_db_connection(conn)
 
