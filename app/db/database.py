@@ -14,9 +14,10 @@ def get_connection_pool():
     """
     Obtener o crear el connection pool con retry logic.
     
-    Pool size: 2-10 conexiones (optimizado para FastAPI async)
-    - minconn=2: Conexiones iniciales (reduce latencia de startup)
-    - maxconn=10: Máximo suficiente para carga normal
+    Pool size: 3-15 conexiones (optimizado para requests concurrentes)
+    - minconn=3: Conexiones iniciales siempre disponibles
+    - maxconn=15: Suficiente para múltiples requests simultáneos
+    - statement_timeout=25s: Queries nunca bloquean >25s (fail fast)
     
     Retry logic: 3 intentos con backoff exponencial para manejar
     problemas transitorios de DNS/red al inicio del contenedor.
@@ -36,11 +37,11 @@ def get_connection_pool():
         for attempt in range(1, max_retries + 1):
             try:
                 _connection_pool = pool.SimpleConnectionPool(
-                    minconn=2,      # Solo 2 conexiones iniciales (startup rápido)
-                    maxconn=10,     # Máximo 10 conexiones (suficiente para async)
+                    minconn=3,      # 3 conexiones iniciales (balance startup/disponibilidad)
+                    maxconn=15,     # Máximo 15 conexiones (para múltiples requests concurrentes)
                     dsn=settings.database_url,
                     cursor_factory=RealDictCursor,
-                    options="-c search_path=ai,public"
+                    options="-c search_path=ai,public -c statement_timeout=25000"  # 25s timeout
                 )
                 print(f"✅ Connection pool creado exitosamente (attempt {attempt})")
                 break
@@ -67,10 +68,28 @@ def get_db_connection():
     - Queries sin prefijo resuelven primero en schema ai
     - Fallback a schema public para tablas compartidas
     - Foreign keys cross-schema funcionan automáticamente
+    
+    Timeout: Si el pool está agotado, espera máximo 5s antes de fallar.
     """
     pool_instance = get_connection_pool()
-    conn = pool_instance.getconn()
-    return conn
+    
+    # getconn() con timeout (evita bloqueo infinito si pool agotado)
+    max_wait = 5  # segundos
+    start_time = time.time()
+    
+    while True:
+        try:
+            conn = pool_instance.getconn()
+            return conn
+        except pool.PoolError as e:
+            elapsed = time.time() - start_time
+            if elapsed > max_wait:
+                print(f"❌ Pool exhausted después de {max_wait}s - no hay conexiones disponibles")
+                raise Exception(f"Database pool exhausted (waited {max_wait}s)")
+            
+            # Pool temporalmente agotado, esperar un poco
+            print(f"⚠️ Pool busy, esperando... ({elapsed:.1f}s elapsed)")
+            time.sleep(0.1)  # Wait 100ms antes de reintentar
 
 
 def return_db_connection(conn):
